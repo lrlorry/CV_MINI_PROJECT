@@ -7,5 +7,4 @@ python3 train.py \
   --epochs 10 \
   --finetune_epochs 5 \
   --resume models/latest.pth \
-  --use_lab \
   2>&1 | tee outputs/training.log"
