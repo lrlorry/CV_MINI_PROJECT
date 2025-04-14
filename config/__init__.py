@@ -1,0 +1,1 @@
+from config.color_palettes import COLOR_PALETTES

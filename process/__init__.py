@@ -1,0 +1,1 @@
+from process.high_res import process_high_res_image
