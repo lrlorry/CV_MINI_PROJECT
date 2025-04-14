@@ -184,7 +184,7 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, output_dir="mo
 def finetune_with_full_images(model, sketch_path, depth_path, target_path, output_dir, 
                              epochs=10, lr=0.0001, device=None, use_lab_colorspace=True, use_vgg_loss=True):
     """
-    使用全图fine-tune模型，适用于已有素描和深度图的情况
+    使用全图fine-tune模型,适用于已有素描和深度图的情况
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

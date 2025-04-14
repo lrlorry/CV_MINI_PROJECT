@@ -108,30 +108,30 @@ echo "批量处理完成! 结果保存在 all_styles 目录下"
 python U-Net-block.py --mode train --sketch sketch.png --depth depth.png --image original.png --output models --epochs 100 --finetune_epochs 10
 
 # 处理模式（应用训练好的模型）：
-python3 U_Net_block_v2.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --palette abao --color_mode palette
-python3 U_Net_block_v2.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --color_mode original
+python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --palette abao --color_mode palette
+python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --color_mode palette
 # 使用特定颜色风格处理：
-python3 U_Net_block_v2.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --color_mode palette --palette cyberpunk
+python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --color_mode palette --palette cyberpunk
 
 # 批量处理所有颜色方案：
-python U-Net-block.py --mode batch --model models/final_model.pth --sketch sketch.png --depth depth.png --output all_styles
+python process.py --mode batch --model models/final_model.pth --sketch sketch.png --depth depth.png --output all_styles
 
-python U_Net_block.py --mode batch --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output all_styles
-
-
-python3 U-Net-block.py --mode train --sketch sketch.png --depth depth.png --image jcsmr.jpg --output models --epochs 100 --finetune_epochs 10
+python process.py --mode batch --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output all_styles
 
 
+python3 train.py --mode train --sketch sketch.png --depth depth.png --image jcsmr.jpg --output models --epochs 100 --finetune_epochs 10
 
-python U_Net_block.py --mode process --model models/final_model.pth --sketch sketch.png --depth depth.png --output output
 
 
-scp -i ~/.ssh/id_rsa paperspace@184.105.3.72:/home/paperspace/SketchNeRF_simple/output/result_original_sketch.png .
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.162:/home/paperspace/SketchNeRF_simple/all_styles_with_lab/ .
+python process.py --mode process --model models/final_model.pth --sketch sketch.png --depth depth.png --output output
 
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.4.203:/home/paperspace/SketchNeRF_simple/results/ .
 
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.4.203:/home/paperspace/SketchNeRF_simple/outputs .
+scp -i ~/.ssh/id_rsa paperspace@184.105.3.72:/home/paperspace/CV_MINI_PROJECT/output/result_original_sketch.png .
+scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.162:/home/paperspace/CV_MINI_PROJECT/all_styles_with_lab/ .
+
+scp -i ~/.ssh/id_rsa -r paperspace@184.105.4.203:/home/paperspace/CV_MINI_PROJECT/results/ .
+
+scp -i ~/.ssh/id_rsa -r paperspace@184.105.3.39:/home/paperspace/CV_MINI_PROJECT/outputs .
 
 chmod +x train.sh
 bash train.sh
