@@ -35,10 +35,10 @@ log_path = "outputs/training.log"
 os.makedirs(vis_dir, exist_ok=True)
 
 loss_history = []
-#!!!!
+
 def train_from_sketch_depth(sketch_path, depth_path, target_path, output_dir="models", 
                           epochs=100, batch_size=8, patch_size=256, n_patches=1000,
-                          lr=0.0002, use_style_loss=False, finetune_epochs=10, 
+                          lr=0.0002, use_style_loss=True, finetune_epochs=10, 
                           use_lab_colorspace=True, use_vgg_loss=True):
     # 创建输出目录
     os.makedirs(output_dir, exist_ok=True)
@@ -321,7 +321,7 @@ if __name__ == "__main__":
     parser.add_argument("--sketch", default="sketch.jpg", help="素描图路径 (仅process模式)")
     parser.add_argument("--output", default="models", help="输出目录")
     parser.add_argument("--epochs", type=int, default=100, help="训练轮数")
-    parser.add_argument("--batch_size", type=int, default=8, help="训练批次大小")
+    parser.add_argument("--batch_size", type=int, default=8, help="no_style训练批次大小")
     parser.add_argument("--finetune_epochs", type=int, default=10, help="全图fine-tune轮数")
     parser.add_argument('--resume', type=str, default=None, help='Path to resume checkpoint')
     parser.add_argument('--no_style', action='store_true', help='强制禁用样式编码器')
