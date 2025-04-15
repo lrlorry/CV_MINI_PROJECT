@@ -83,12 +83,16 @@ class SketchDepthColorizer(nn.Module):
             
             style_features = self.style_processor(s3)
             
-            batch_size = e3.size(0)
-            style_spatial = style_features.view(batch_size, -1, 1, 1).expand_as(e3)
+            # batch_size = e3.size(0)
+            # style_spatial = style_features.view(batch_size, -1, 1, 1).expand_as(e3)
             #!!!!
             # e3 = self.style_modulation(torch.cat([e3, style_spatial], dim=1))
             # style_spatial 是形状和 e3 一样的 style 特征图
-            e3 = adaptive_instance_normalization(e3, style_spatial)
+            # e3 = adaptive_instance_normalization(e3, style_spatial)
+            alpha = 0.5
+            e3_adain = adaptive_instance_normalization(e3, style_features)
+            e3 = alpha * e3_adain + (1 - alpha) * e3
+
         
         # 应用自注意力
         e3 = self.attention(e3)
