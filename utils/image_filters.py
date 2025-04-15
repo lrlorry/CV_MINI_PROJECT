@@ -2,102 +2,105 @@ import numpy as np
 import cv2
 from PIL import Image, ImageEnhance
 
-def remove_horizontal_lines(image, strength=1.0):
+def remove_horizontal_lines(image, strength=0.8):
     """
-    针对性地移除水平线伪影，保留图像细节
+    Simple but effective function to remove horizontal line artifacts
     
     Args:
-        image: PIL Image或numpy数组
-        strength: 去除强度，0-1之间
+        image: PIL Image or numpy array
+        strength: Filter strength (0-1)
         
     Returns:
-        处理后的图像
+        Processed image
     """
-    # 检查输入类型
+    import numpy as np
+    import cv2
+    from PIL import Image, ImageEnhance
+    
+    # Check input type
     is_pil = isinstance(image, Image.Image)
     if is_pil:
-        # 保存原始尺寸
+        # Save original size
         original_size = image.size
-        # 转换为numpy数组
+        # Convert to numpy array
         img_np = np.array(image)
-        # 检查是否需要归一化
-        if img_np.dtype == np.uint8:
-            img_np = img_np.astype(np.float32) / 255.0
+        # Check if normalization is needed
+        is_uint8 = img_np.dtype == np.uint8
     else:
         img_np = image.copy()
-        if img_np.max() > 1.0:
+        is_uint8 = img_np.max() > 1.0
+        if is_uint8:
             img_np = img_np.astype(np.float32) / 255.0
     
-    # 确保是3通道图像
-    if len(img_np.shape) == 2:
-        img_np = np.stack([img_np, img_np, img_np], axis=2)
+    # Ensure we're working with float
+    if is_uint8:
+        img_float = img_np.astype(np.float32) / 255.0
+    else:
+        img_float = img_np.astype(np.float32)
     
-    # 创建结果数组
-    result = img_np.copy()
-    
-    # 第1步：创建水平线检测掩码
-    height, width = img_np.shape[:2]
-    gray = cv2.cvtColor((img_np * 255).astype(np.uint8), cv2.COLOR_RGB2GRAY)
-    
-    # 水平Sobel算子检测水平梯度
-    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-    
-    # 计算梯度方向和幅度
-    magnitude = np.sqrt(sobelx**2 + sobely**2)
-    direction = np.arctan2(sobely, sobelx) * 180 / np.pi
-    
-    # 创建水平线掩码：梯度方向接近0°或180°的区域
-    horizontal_mask = np.logical_or(
-        np.logical_and(direction > -10, direction < 10),
-        np.logical_or(
-            np.logical_and(direction > 170, direction < 190),
-            np.logical_and(direction < -170, direction > -190)
-        )
-    )
-    horizontal_mask = horizontal_mask.astype(np.float32)
-    
-    # 扩展掩码区域
-    kernel = np.ones((3, 15), np.uint8)  # 水平方向更宽的核
-    horizontal_mask = cv2.dilate(horizontal_mask, kernel, iterations=1)
-    
-    # 将掩码平滑化
-    horizontal_mask = cv2.GaussianBlur(horizontal_mask, (0, 0), 3)
-    horizontal_mask = horizontal_mask * strength  # 应用强度系数
-    
-    # 第2步：逐通道处理
-    for c in range(3):
-        channel = img_np[:, :, c]
+    # Convert to grayscale if needed for processing
+    if len(img_float.shape) == 3:
+        # Process each channel separately
+        result = np.zeros_like(img_float)
         
-        # 方法1：水平中值滤波
-        # 创建小的水平中值核
-        filtered1 = cv2.medianBlur(channel, 5)
+        for c in range(img_float.shape[2]):
+            channel = img_float[:, :, c]
+            
+            # Step 1: Apply horizontal median filter
+            # Create a horizontal kernel for median blur
+            ksize = 5  # Must be odd
+            horizontal_median = cv2.medianBlur(channel, ksize)
+            
+            # Step 2: Apply bilateral filter to preserve edges while smoothing
+            bilateral = cv2.bilateralFilter(channel, d=5, sigmaColor=0.1, sigmaSpace=5)
+            
+            # Step 3: Apply directed filter to reduce horizontal lines
+            # Create a horizontal kernel
+            kernel_len = 9
+            kernel = np.zeros((kernel_len, kernel_len))
+            # Set middle row to 1s
+            kernel[kernel_len//2, :] = np.ones(kernel_len) / kernel_len
+            # Apply the filter
+            horizontal_filtered = cv2.filter2D(channel, -1, kernel)
+            
+            # Step 4: Blend the filters based on strength parameter
+            blended = channel * (1 - strength) + \
+                      (horizontal_median * 0.4 + bilateral * 0.3 + horizontal_filtered * 0.3) * strength
+            
+            # Store result
+            result[:, :, c] = blended
+    else:
+        # If grayscale
+        # Step 1: Apply horizontal median filter
+        ksize = 5  # Must be odd
+        horizontal_median = cv2.medianBlur(img_float, ksize)
         
-        # 方法2：各向异性滤波
-        # 转换到uint8以使用OpenCV的各向异性滤波
-        temp_channel = (channel * 255).astype(np.uint8)
-        filtered2 = cv2.ximgproc.anisotropicDiffusion(temp_channel, 0.15, 0.25, 12)
-        filtered2 = filtered2.astype(np.float32) / 255.0
+        # Step 2: Apply bilateral filter
+        bilateral = cv2.bilateralFilter(img_float, d=5, sigmaColor=0.1, sigmaSpace=5)
         
-        # 智能融合两种滤波结果
-        filtered = filtered1 * 0.3 + filtered2 * 0.7
+        # Step 3: Apply directed filter
+        kernel_len = 9
+        kernel = np.zeros((kernel_len, kernel_len))
+        kernel[kernel_len//2, :] = np.ones(kernel_len) / kernel_len
+        horizontal_filtered = cv2.filter2D(img_float, -1, kernel)
         
-        # 基于掩码融合原始和滤波结果
-        result[:, :, c] = channel * (1 - horizontal_mask) + filtered * horizontal_mask
+        # Step 4: Blend the filters
+        result = img_float * (1 - strength) + \
+                (horizontal_median * 0.4 + bilateral * 0.3 + horizontal_filtered * 0.3) * strength
     
-    # 微调对比度以增强细节
+    # Convert back to the original format
     if is_pil:
+        # Convert back to uint8
         result_uint8 = (result * 255).astype(np.uint8)
+        # Convert back to PIL
         result_pil = Image.fromarray(result_uint8)
+        # Enhance contrast slightly
         enhancer = ImageEnhance.Contrast(result_pil)
-        result_pil = enhancer.enhance(1.1)  # 轻微增强对比度
-        
-        # 调整大小并返回
-        if result_pil.size != original_size:
-            result_pil = result_pil.resize(original_size, Image.LANCZOS)
+        result_pil = enhancer.enhance(1.1)
+        # Return
         return result_pil
     else:
-        # 如果输入是值范围在[0,255]的numpy数组，则输出也应该是
-        if image.max() > 1.0:
-            result = result * 255.0
+        # Return numpy array in the original range
+        if is_uint8:
+            return (result * 255).astype(np.uint8)
         return result
