@@ -1,0 +1,70 @@
+# Install dependencies
+!pip install git+https://github.com/facebookresearch/segment-anything.git
+!pip install opencv-python matplotlib
+
+# Clone SAM repo
+!git clone https://github.com/facebookresearch/segment-anything
+%cd segment-anything
+
+# Download ViT-H model
+!wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
+
+
+
+
+from segment_anything import sam_model_registry, SamPredictor
+import numpy as np
+import cv2, os
+from PIL import Image
+from google.colab import files
+import matplotlib.pyplot as plt
+
+# ==== 上传图像 ====
+uploaded = files.upload()
+image_path = next(iter(uploaded))
+image = cv2.imread(image_path)
+image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+# ==== 加载模型 ====
+checkpoint = "sam_vit_h_4b8939.pth"
+model_type = "vit_h"
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+predictor = SamPredictor(sam)
+predictor.set_image(image_rgb)
+
+# ==== 选择点进行分割（可以改成任意点）====
+input_point = np.array([[300, 400]])
+input_label = np.array([1])
+masks, _, _ = predictor.predict(
+    point_coords=input_point,
+    point_labels=input_label,
+    multimask_output=False
+)
+
+# ==== 保存函数 ====
+def save_sam_segmentation(image_rgb, mask, output_prefix="result"):
+    os.makedirs("output", exist_ok=True)
+    image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(f"output/{output_prefix}_original.jpg", image_bgr)
+    binary_mask = (mask.astype(np.uint8)) * 255
+    cv2.imwrite(f"output/{output_prefix}_mask.png", binary_mask)
+    colored_mask = np.zeros_like(image_rgb)
+    colored_mask[binary_mask == 255] = [255, 0, 0]
+    blended = cv2.addWeighted(image_rgb, 0.7, colored_mask, 0.3, 0)
+    cv2.imwrite(f"output/{output_prefix}_overlay.jpg", cv2.cvtColor(blended, cv2.COLOR_RGB2BGR))
+    rgba = np.dstack((image_rgb, binary_mask))
+    Image.fromarray(rgba).save(f"output/{output_prefix}_transparent.png")
+    print("✅ Saved to ./output")
+
+# ==== 执行保存 ====
+save_sam_segmentation(image_rgb, masks[0])
+
+
+
+
+from google.colab import files
+files.download('output/result_original.jpg')
+files.download('output/result_mask.png')
+files.download('output/result_overlay.jpg')
+files.download('output/result_transparent.png')

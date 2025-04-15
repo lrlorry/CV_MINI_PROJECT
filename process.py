@@ -216,6 +216,18 @@ if __name__ == "__main__":
     parser.add_argument("--no_semantic", action="store_true", help="强制禁用语义分割")  # 新增参数
     parser.add_argument("--no_style", action="store_true", help="强制禁用风格编码器")
     
+    parser.add_argument("--block_size", type=int, default=512, help="处理块大小")
+    parser.add_argument("--overlap", type=int, default=64, help="重叠像素数")
+    # 颜色处理选项
+    parser.add_argument("--color_mode", choices=["original", "palette", "hsv", "quantized"], default="original", help="颜色处理模式")
+    parser.add_argument("--palette", default="abao", choices=list(COLOR_PALETTES.keys()), help="调色板名称")
+    parser.add_argument("--palette_strength", type=float, default=0.8, help="调色板应用强度 (0-1)")
+    parser.add_argument("--hsv_saturation", type=float, default=1.5, help="HSV饱和度增强系数")
+    parser.add_argument("--hsv_value", type=float, default=1.2, help="HSV亮度增强系数")
+    # 功能开关
+    parser.add_argument("--use_lab", action="store_true", help="使用Lab颜色空间处理")
+    parser.add_argument("--no_style", action="store_true", help="强制禁用风格编码器")
+    parser.add_argument("--all_styles", action="store_true", help="批量处理所有颜色方案")
     args = parser.parse_args()
     
     # 根据选择的模式执行处理
