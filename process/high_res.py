@@ -121,6 +121,10 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
             sketch_tensor = transform(sketch_block).unsqueeze(0).to(device)
             depth_tensor = transform(depth_block).unsqueeze(0).to(device)
             
+            # 调试: 输出输入张量的范围
+            if x_start == 0 and y_start == 0:  # 只对第一个块输出，避免太多日志
+                print(f"[调试] 输入张量范围: sketch={sketch_tensor.min().item():.4f}-{sketch_tensor.max().item():.4f}, depth={depth_tensor.min().item():.4f}-{depth_tensor.max().item():.4f}")
+            
             # For Lab color processing, we need a 3-channel version of the sketch
             sketch_rgb = None
             if use_lab_colorspace:
@@ -134,6 +138,10 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
                     output = model(sketch_tensor, depth_tensor, style_image=style_tensor,
                                 original_image=sketch_rgb,
                                 use_lab_colorspace=use_lab_colorspace)
+                    
+                    # 调试: 输出模型输出的范围
+                    if x_start == 0 and y_start == 0:  # 只对第一个块输出，避免太多日志
+                        print(f"[调试] 模型输出张量范围: min={output.min().item():.4f}, max={output.max().item():.4f}")
                     
                     # Check for NaN values in output
                     if torch.isnan(output).any():
@@ -157,6 +165,10 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
             output_np = (output_np + 1) / 2
             output_np = np.clip(output_np, 0, 1)
             
+            # 调试: 输出转换后的numpy数组范围
+            if x_start == 0 and y_start == 0:  # 只对第一个块输出，避免太多日志
+                print(f"[调试] 转换后numpy数组范围: min={output_np.min():.4f}, max={output_np.max():.4f}")
+            
             # Check for NaN or Inf values in the numpy array
             if np.isnan(output_np).any() or np.isinf(output_np).any():
                 print(f"Warning: NaN or Inf values detected in numpy array for block at ({x_start},{y_start})")
@@ -171,10 +183,10 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
             else:
                 window_resized = window
             
-            # 应用窗口权重
+            # Apply window weights
             weighted_output = output_np * window_resized[:, :, np.newaxis]
 
-            # NaN检查 - 在累积之前防止NaN传播
+            # NaN check - prevent NaN propagation before accumulation
             if np.isnan(weighted_output).any():
                 print(f"NaN detected in weighted output for block at ({x_start},{y_start})")
                 weighted_output = np.nan_to_num(weighted_output, nan=0.0)
@@ -183,7 +195,7 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
                 print(f"NaN detected in window weights for block at ({x_start},{y_start})")
                 window_resized = np.nan_to_num(window_resized, nan=1.0)
 
-            # 累积到最终输出
+            # Accumulate to final output
             output_array[y_start:y_end, x_start:x_end] += weighted_output
             weight_map[y_start:y_end, x_start:x_end] += window_resized
             
@@ -193,9 +205,16 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
     # Close progress bar
     pbar.close()
     
+    # 调试: 输出归一化前的数据范围
+    print(f"[调试] 归一化前输出数组范围: min={output_array.min():.4f}, max={output_array.max():.4f}")
+    print(f"[调试] 权重图范围: min={weight_map.min():.4f}, max={weight_map.max():.4f}")
+    
     # Normalize output (according to weights)
     weight_map = np.maximum(weight_map, 1e-6)[:, :, np.newaxis]  # Avoid division by zero, broadcast to 3 channels
     output_array = output_array / weight_map
+    
+    # 调试: 输出归一化后的数据范围
+    print(f"[调试] 归一化后输出数组范围: min={output_array.min():.4f}, max={output_array.max():.4f}")
     
     # Check for NaN or Inf values in the final output
     if np.isnan(output_array).any() or np.isinf(output_array).any():
