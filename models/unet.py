@@ -6,26 +6,31 @@ from utils.lab_processor import LabColorProcessor
 
 # === 核心函数：风格对齐 ===
 # === 优化后的自适应实例归一化函数 ===
-def adaptive_instance_normalization(content_feat, style_feat, eps=1e-5):
-    """改进的AdaIN实现，避免生成水平线伪影"""
-    # 计算内容特征的统计量
-    c_mean = content_feat.mean(dim=[2, 3], keepdim=True)
-    c_var = content_feat.var(dim=[2, 3], keepdim=True) + eps
-    c_std = c_var.sqrt()
+def adaptive_instance_normalization(content_feat, style_feat):
+    """
+    Adaptive Instance Normalization
+    Normalized content features to have the same mean and variance as style features
     
-    # 计算风格特征的统计量
-    s_mean = style_feat.mean(dim=[2, 3], keepdim=True)
-    s_var = style_feat.var(dim=[2, 3], keepdim=True) + eps
-    s_std = s_var.sqrt()
+    Args:
+        content_feat: Content feature tensor of shape [B, C, H, W]
+        style_feat: Style feature tensor of shape [B, C, H, W]
     
-    # 归一化和重新调整
-    normalized = (content_feat - c_mean) / c_std
-    result = normalized * s_std + s_mean
+    Returns:
+        Normalized content feature tensor
+    """
+    size = content_feat.size()
     
-    # 确保结果中没有异常值
-    result = torch.clamp(result, -3.0, 3.0)
+    # Calculate mean and std of content features (across spatial dimensions)
+    content_mean = content_feat.view(size[0], size[1], -1).mean(dim=2).view(size[0], size[1], 1, 1)
+    content_std = content_feat.view(size[0], size[1], -1).std(dim=2).view(size[0], size[1], 1, 1) + 1e-5
     
-    return result
+    # Calculate mean and std of style features (across spatial dimensions)
+    style_mean = style_feat.view(size[0], size[1], -1).mean(dim=2).view(size[0], size[1], 1, 1)
+    style_std = style_feat.view(size[0], size[1], -1).std(dim=2).view(size[0], size[1], 1, 1) + 1e-5
+    
+    # Normalize content features and scale with style statistics
+    normalized = (content_feat - content_mean) / content_std
+    return normalized * style_std + style_mean
 
 # 修改后的U-Net架构，添加样式编码器和注意力机制
 class SketchDepthColorizer(nn.Module):
@@ -109,22 +114,22 @@ class SketchDepthColorizer(nn.Module):
                 # 确保批次大小匹配
                 batch_size = e3.size(0)
                 feature_dim = style_features.size(1)
-                
                 # 安全地重塑特征
                 style_feat = style_features.view(batch_size, feature_dim, 1, 1)
-                
                 # 使用更精确的扩展方法
                 h, w = e3.size(2), e3.size(3)
                 style_feat = style_feat.expand(batch_size, feature_dim, h, w)
             else:
                 style_feat = style_features
-            
+                
             # 应用AdaIN但使用较低的混合强度
             alpha = 0.2  # 降低强度以减少伪影
             e3_adain = adaptive_instance_normalization(e3, style_feat)
-            
             # 平滑混合以避免突变
             e3 = torch.lerp(e3, e3_adain, alpha)
+            
+            # 使用调制模块处理融合后的特征
+            e3 = self.style_modulation(torch.cat([e3, style_feat], dim=1))
 
         
         # 应用自注意力
