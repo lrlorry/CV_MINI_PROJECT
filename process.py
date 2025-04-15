@@ -214,7 +214,6 @@ if __name__ == "__main__":
     
     # 功能开关
     parser.add_argument("--no_semantic", action="store_true", help="强制禁用语义分割")  # 新增参数
-    parser.add_argument("--no_style", action="store_true", help="强制禁用风格编码器")
     
     parser.add_argument("--block_size", type=int, default=512, help="处理块大小")
     parser.add_argument("--overlap", type=int, default=64, help="重叠像素数")
