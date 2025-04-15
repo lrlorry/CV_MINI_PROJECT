@@ -83,17 +83,7 @@ class SketchDepthColorizer(nn.Module):
         self.dec2 = nn.ConvTranspose2d(base_filters*2 + base_filters*2, base_filters, 4, 2, 1)    # 上采样到原始大小
         self.dec1 = nn.Conv2d(base_filters + base_filters, 3, 3, 1, 1)                         # 输出RGB
         
-        # 添加颜色增强模块 - 使输出更亮
-        self.color_enhancer = nn.Sequential(
-            nn.Conv2d(3, 3, kernel_size=1),
-            nn.Sigmoid()  # 使用sigmoid确保输出在[0,1]范围
-        )
-        
-        # 将颜色增强器的权重初始化为接近恒等变换
-        with torch.no_grad():
-            # 初始化为恒等变换 (较浅的颜色)
-            self.color_enhancer[0].weight.fill_(0.8)  # 略微减淡
-            self.color_enhancer[0].bias.fill_(0.1)    # 增加亮度
+        # 移除之前的颜色增强器，这可能是导致过度白化的原因
     
     def smooth_horizontal_lines(self, x, strength=0.3):
         """应用水平平滑以减少条纹伪影"""
@@ -118,8 +108,8 @@ class SketchDepthColorizer(nn.Module):
         e2 = F.relu(self.enc2(e1))
         e3 = F.relu(self.enc3(e2))
         
-        # 应用水平平滑来减少条纹
-        e3 = self.smooth_horizontal_lines(e3, strength=0.4)
+        # 应用水平平滑来减少条纹，使用较低的强度
+        e3 = self.smooth_horizontal_lines(e3, strength=0.25)
         
         # 处理样式信息
         if self.with_style_encoder and style_image is not None:
@@ -145,14 +135,8 @@ class SketchDepthColorizer(nn.Module):
             else:
                 style_feat = style_features
                 
-            # 应用AdaIN，但使用非常低的强度以保留原始颜色
-            e3_adain = adaptive_instance_normalization(e3, style_feat, intensity=0.1)
-            
-            # 平滑混合以避免突变
-            alpha = 0.1  # 非常小的强度，几乎保留所有原始内容
-            e3 = torch.lerp(e3, e3_adain, alpha)
-            
-            # 使用调制模块处理融合后的特征
+            # 应用温和的风格影响，几乎不改变原始内容
+            alpha = 0.05  # 更低的强度
             e3 = self.style_modulation(torch.cat([e3, style_feat], dim=1))
         
         # 应用自注意力
@@ -165,20 +149,15 @@ class SketchDepthColorizer(nn.Module):
         d3 = F.relu(self.dec3(torch.cat([b, e3], dim=1)))
         d2 = F.relu(self.dec2(torch.cat([d3, e2], dim=1)))
         
-        # 再次应用水平平滑以减少条纹
-        d2 = self.smooth_horizontal_lines(d2, strength=0.3)
+        # 应用温和的水平平滑
+        d2 = self.smooth_horizontal_lines(d2, strength=0.2)
         
         # 输出层前应用最后的平滑
         d1_pre = torch.cat([d2, e1], dim=1)
-        d1_pre = self.smooth_horizontal_lines(d1_pre, strength=0.2)
+        d1_pre = self.smooth_horizontal_lines(d1_pre, strength=0.15)
         
-        # 基本输出
+        # 基本输出 - 使用tanh但不做额外处理
         d1 = torch.tanh(self.dec1(d1_pre))
-        
-        # 应用颜色增强 - 转到[0,1]范围，增强，再回到[-1,1]
-        d1_0_1 = (d1 + 1) / 2  # 转到[0,1]范围
-        d1_enhanced = self.color_enhancer(d1_0_1)
-        d1 = d1_enhanced * 2 - 1  # 回到[-1,1]
         
         # 应用Lab颜色空间处理（如果启用）
         if use_lab_colorspace and original_image is not None:
@@ -186,3 +165,35 @@ class SketchDepthColorizer(nn.Module):
             d1 = lab_processor.process_ab_channels(original_image, d1)
         
         return d1
+        
+    def preserve_colors(self, content_img, style_img, preserve_ratio=0.5):
+        """
+        保留内容图像中的颜色，同时应用风格图像的纹理
+        这个方法在输出阶段使用，而不是在特征空间中
+        
+        Args:
+            content_img: 内容图像张量 [B, C, H, W]
+            style_img: 风格图像张量 [B, C, H, W]
+            preserve_ratio: 保留原始颜色的比例
+        
+        Returns:
+            结合了内容颜色和风格纹理的图像
+        """
+        # 转换到YUV颜色空间
+        content_y = 0.299 * content_img[:, 0:1] + 0.587 * content_img[:, 1:2] + 0.114 * content_img[:, 2:3]
+        content_u = -0.147 * content_img[:, 0:1] - 0.289 * content_img[:, 1:2] + 0.436 * content_img[:, 2:3]
+        content_v = 0.615 * content_img[:, 0:1] - 0.515 * content_img[:, 1:2] - 0.100 * content_img[:, 2:3]
+        
+        # 从风格图像中提取亮度
+        style_y = 0.299 * style_img[:, 0:1] + 0.587 * style_img[:, 1:2] + 0.114 * style_img[:, 2:3]
+        
+        # 混合亮度通道，保留色度通道
+        blended_y = style_y * (1-preserve_ratio) + content_y * preserve_ratio
+        
+        # 转换回RGB
+        blended_r = blended_y + 1.140 * content_v
+        blended_g = blended_y - 0.395 * content_u - 0.581 * content_v
+        blended_b = blended_y + 2.032 * content_u
+        
+        # 合并通道
+        return torch.cat([blended_r, blended_g, blended_b], dim=1)
