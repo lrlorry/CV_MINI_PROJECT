@@ -50,6 +50,7 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
     
     # 设置设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
     # 创建模型
     model = SketchDepthColorizer(
         base_filters=16, 
@@ -85,31 +86,46 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
         
         with tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
             for i, batch in enumerate(pbar):
-                # 获取数据
+                # 准备输入张量
                 sketch = batch['sketch'].to(device)
                 depth = batch['depth'].to(device)
                 target = batch['target'].to(device)
                 
-                # 如果有语义掩码，则使用它
+                # 如果有语义掩码，处理它
                 semantic = batch.get('semantic')
                 if semantic is not None:
                     semantic = semantic.to(device)
+                
                 # 清除梯度
                 optimizer.zero_grad()
                 
-                # 前向传播
-                output = model(
-                    sketch, depth, semantic=semantic,
-                    style_image=target if use_style_loss else None,
-                    original_image=target if use_lab_colorspace else None,
-                    use_lab_colorspace=use_lab_colorspace
-                )
-                # ！！！# 在计算损失之前添加颜色增强（可选，如果颜色仍然不够鲜艳）
-                # if not use_lab_colorspace:  # 仅当不使用Lab空间时添加
-                #     # 略微增强颜色，不影响内容
+                # 根据模型是否支持语义输入来前向传播
+                if hasattr(model, 'with_semantic') and model.with_semantic:
+                    if semantic is None:
+                        # 如果模型支持语义输入但没有语义掩码，创建全零掩码
+                        semantic = torch.zeros_like(sketch)
+                    
+                    output = model(
+                        sketch, depth, semantic=semantic,
+                        style_image=target if use_style_loss else None,
+                        original_image=target if use_lab_colorspace else None,
+                        use_lab_colorspace=use_lab_colorspace
+                    )
+                else:
+                    # 如果模型不支持语义输入，忽略语义掩码
+                    output = model(
+                        sketch, depth,
+                        style_image=target if use_style_loss else None,
+                        original_image=target if use_lab_colorspace else None,
+                        use_lab_colorspace=use_lab_colorspace
+                    )
+                
+                # !!!!# 在计算损失之前添加颜色增强（可选）
+                # if not use_lab_colorspace:
                 #     color_enhancement = 0.05  # 小的增强因子
-                #     mean_color = output.mean(dim=[2, 3], keepdim=True)  # 计算平均颜色
-                #     output = output + color_enhancement * (output - mean_color)  # 增强颜色差异
+                #     mean_color = output.mean(dim=[2, 3], keepdim=True)
+                #     output = output + color_enhancement * (output - mean_color)
+                
                 # 计算损失
                 if use_vgg_loss:
                     total_loss, loss_info = combined_loss(output, target)
@@ -124,7 +140,6 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
                 # 检查损失是否正确连接到计算图
                 if not total_loss.requires_grad:
                     print("WARNING: Loss doesn't require gradients!")
-                    # 添加一个小的需要梯度的项以确保反向传播正常工作
                     total_loss = total_loss + 0.0 * sum(p.sum() for p in model.parameters() if p.requires_grad)
                 
                 # 反向传播
@@ -160,15 +175,27 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
                 val_depth = dataset[0]['depth'].unsqueeze(0).to(device)
                 val_target = dataset[0]['target'].unsqueeze(0).to(device)
                 
-                # Get semantic data if available
+                # 获取语义数据（如果可用）
                 val_semantic = None
                 if 'semantic' in dataset[0]:
                     val_semantic = dataset[0]['semantic'].unsqueeze(0).to(device)
 
-                # Pass semantic data to the model
-                val_output = model(val_sketch, val_depth, semantic=val_semantic,
-                                original_image=val_target if use_lab_colorspace else None,
-                                use_lab_colorspace=use_lab_colorspace)
+                # 根据模型是否支持语义输入来前向传播
+                if hasattr(model, 'with_semantic') and model.with_semantic:
+                    if val_semantic is None:
+                        # 如果模型支持语义输入但没有语义掩码，创建全零掩码
+                        val_semantic = torch.zeros_like(val_sketch)
+                    
+                    val_output = model(val_sketch, val_depth, semantic=val_semantic,
+                                      style_image=val_target if use_style_loss else None,
+                                      original_image=val_target if use_lab_colorspace else None,
+                                      use_lab_colorspace=use_lab_colorspace)
+                else:
+                    # 如果模型不支持语义输入，忽略语义掩码
+                    val_output = model(val_sketch, val_depth,
+                                      style_image=val_target if use_style_loss else None,
+                                      original_image=val_target if use_lab_colorspace else None,
+                                      use_lab_colorspace=use_lab_colorspace)
                 
                 save_triplet(sketch_path, depth_path, val_output, epoch+1, avg_epoch_loss)
             model.train()
@@ -196,15 +223,15 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
             model, sketch_path, depth_path, target_path, output_dir,
             epochs=finetune_epochs, device=device,
             use_lab_colorspace=use_lab_colorspace,
-            use_vgg_loss=use_vgg_loss
+            use_vgg_loss=use_vgg_loss,
+            semantic_path=semantic_path  # 传递语义掩码路径
         )
     
     return final_model_path
 
-
 def finetune_with_full_images(model, sketch_path, depth_path, target_path, output_dir, 
                              epochs=10, lr=0.0001, device=None, use_lab_colorspace=True, use_vgg_loss=True,
-                             semantic_path=None):  # Add semantic_path parameter
+                             semantic_path=None):
     """
     使用全图fine-tune模型,适用于已有素描和深度图的情况
     """
@@ -227,7 +254,6 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
             print(f"Loaded semantic mask from {semantic_path}")
         except Exception as e:
             print(f"Failed to load semantic mask: {e}")
-            # 如果加载失败，创建一个空白掩码
             semantic = None
     
     # 强制将图像调整到非常小的尺寸以适应GPU内存
@@ -253,7 +279,7 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     if semantic is not None:
         semantic = semantic.resize((new_w, new_h), Image.NEAREST)  # 使用NEAREST避免平滑掩码边界
     
-    # 转换为张量
+    # 准备输入张量 - 修改此处以确保兼容性
     transform_gray = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize([0.5], [0.5])  # 转换到[-1,1]
@@ -263,19 +289,32 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])  # 转换到[-1,1]
     ])
     
-    sketch_tensor = transform_gray(sketch).unsqueeze(0).to(device)
-    depth_tensor = transform_gray(depth).unsqueeze(0).to(device)
+    # 根据模型是否支持语义输入来准备输入
+    if hasattr(model, 'with_semantic') and model.with_semantic:
+        # 如果模型支持语义输入，但没有语义掩码，创建全零掩码
+        if semantic is None:
+            semantic = Image.new('L', (new_w, new_h), 0)
+        
+        # 准备张量 - sketch, depth, semantic
+        sketch_tensor = transform_gray(sketch)
+        depth_tensor = transform_gray(depth)
+        semantic_tensor = transform_gray(semantic)
+        
+        # 拼接三个张量
+        input_tensor = torch.cat([sketch_tensor, depth_tensor, semantic_tensor], dim=0).unsqueeze(0).to(device)
+    else:
+        # 如果模型不支持语义输入，只使用sketch和depth
+        sketch_tensor = transform_gray(sketch)
+        depth_tensor = transform_gray(depth)
+        input_tensors = [sketch_tensor, depth_tensor]
+        input_tensor = torch.cat(input_tensors, dim=0).unsqueeze(0).to(device)
+    
     target_tensor = transform_color(target).unsqueeze(0).to(device)
     
-    # 转换语义掩码（如果有）
-    semantic_tensor = None
-    if semantic is not None:
-        semantic_tensor = transform_gray(semantic).unsqueeze(0).to(device)
-    
-    # 优化器 - 使用较小的学习率
+    # 优化器
     optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
     
-    # 损失函数 - 使用新的组合损失或仅L1
+    # 损失函数
     if use_vgg_loss:
         combined_loss = CombinedLoss(lambda_l1=1.0, lambda_perceptual=0.5)
         combined_loss = combined_loss.to(device)
@@ -285,11 +324,18 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     # Fine-tune循环
     with tqdm(range(epochs), desc="Fine-tuning with full image") as pbar:
         for epoch in pbar:
-            # 前向传播
-            output = model(sketch_tensor, depth_tensor, semantic=semantic_tensor,
-                          style_image=target_tensor if model.with_style_encoder else None,
-                          original_image=target_tensor if use_lab_colorspace else None,
-                          use_lab_colorspace=use_lab_colorspace)
+            # 前向传播 - 修改此处以传递正确的参数
+            if hasattr(model, 'with_semantic') and model.with_semantic:
+                output = model(input_tensor[:, 0:1], input_tensor[:, 1:2], 
+                              semantic=input_tensor[:, 2:3] if input_tensor.size(1) > 2 else None,
+                              style_image=target_tensor if model.with_style_encoder else None,
+                              original_image=target_tensor if use_lab_colorspace else None,
+                              use_lab_colorspace=use_lab_colorspace)
+            else:
+                output = model(input_tensor[:, 0:1], input_tensor[:, 1:2],
+                              style_image=target_tensor if model.with_style_encoder else None,
+                              original_image=target_tensor if use_lab_colorspace else None, 
+                              use_lab_colorspace=use_lab_colorspace)
             
             # 计算损失
             if use_vgg_loss:
@@ -318,14 +364,21 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
             if (epoch + 1) % 5 == 0 or epoch == epochs - 1:
                 with torch.no_grad():
                     model.eval()
-                    val_output = model(sketch_tensor, depth_tensor, semantic=semantic_tensor,
-                                     original_image=target_tensor if use_lab_colorspace else None,
-                                     use_lab_colorspace=use_lab_colorspace)
+                    # 重复前向传播逻辑
+                    if hasattr(model, 'with_semantic') and model.with_semantic:
+                        val_output = model(input_tensor[:, 0:1], input_tensor[:, 1:2], 
+                                           semantic=input_tensor[:, 2:3] if input_tensor.size(1) > 2 else None,
+                                           original_image=target_tensor if use_lab_colorspace else None,
+                                           use_lab_colorspace=use_lab_colorspace)
+                    else:
+                        val_output = model(input_tensor[:, 0:1], input_tensor[:, 1:2],
+                                           original_image=target_tensor if use_lab_colorspace else None, 
+                                           use_lab_colorspace=use_lab_colorspace)
                     
                     # 保存可视化
                     result_img = torch.cat([
-                        sketch_tensor.expand(-1, 3, -1, -1),  # 扩展通道到RGB
-                        depth_tensor.expand(-1, 3, -1, -1),  # 扩展通道到RGB
+                        input_tensor[:, 0:1].expand(-1, 3, -1, -1),  # 扩展通道到RGB
+                        input_tensor[:, 1:2].expand(-1, 3, -1, -1),  # 扩展通道到RGB
                         val_output,
                         target_tensor
                     ], dim=0)
@@ -341,7 +394,6 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     print(f"Fine-tuned model saved to {ft_model_path}")
     
     return ft_model_path
-
 # 主函数
 if __name__ == "__main__":
     # 创建必要的目录

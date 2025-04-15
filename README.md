@@ -145,4 +145,4 @@ chmod +x predict_full.sh
 会不会是因为梯度爆炸，因为train.py为了vgg全部改成了tensor 张量
 
 
-分块，vgg lab 调色盘/多种风格 数据增强 梯度爆炸 数据增强-后处理-块状伪影/色块边界 3d 素描图 深度图 finetune
+分块，vgg lab 调色盘/多种风格 数据增强 梯度爆炸 数据增强-后处理-块状伪影/色块边界 3d 素描图 深度图 finetune 语意切割
