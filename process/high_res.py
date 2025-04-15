@@ -15,24 +15,6 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
                           use_lab_colorspace=False):  
     """
     Process high-resolution images using block-wise processing and output full-size result
-    
-    Args:
-        model: Trained model
-        sketch_path: Path to sketch image
-        depth_path: Path to depth image
-        output_path: Path for output image
-        style_path: Path to style image (optional)
-        block_size: Size of each processing block (default 512)
-        overlap: Number of overlapping pixels between adjacent blocks (default 64)
-        color_mode: Color processing mode ("original", "palette", "hsv", "quantized")
-        palette_name: Palette name (effective when color_mode is "palette")
-        palette_strength: Palette application strength (effective when color_mode is "palette")
-        hsv_saturation: HSV saturation enhancement factor (effective when color_mode is "hsv")
-        hsv_value: HSV brightness enhancement factor (effective when color_mode is "hsv")
-        use_lab_colorspace: Whether to use Lab color space processing
-    
-    Returns:
-        output_pil: Processed PIL image object
     """
     # Set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -54,6 +36,14 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
     # Get original dimensions
     original_width, original_height = sketch_pil.size
     print(f"Processing image size: {original_width}x{original_height}")
+    
+    # 检查是否需要创建虚拟语义通道 (新增)
+    needs_semantic = hasattr(model, 'with_semantic') and model.with_semantic
+    print(f"模型需要语义通道: {needs_semantic}")
+    if needs_semantic and semantic_pil is None:
+        print("创建虚拟语义通道 (全零)")
+        # 如果需要语义通道但没有提供，则创建一个全零的虚拟语义通道
+        semantic_pil = Image.new('L', sketch_pil.size, 0)
     
     # Ensure output folder exists
     os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
@@ -136,14 +126,17 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
             # Convert to tensors
             sketch_tensor = transform(sketch_block).unsqueeze(0).to(device)
             depth_tensor = transform(depth_block).unsqueeze(0).to(device)
+            
             # 转换语义块（如果有）
             semantic_tensor = None
             if semantic_block is not None:
                 semantic_tensor = transform(semantic_block).unsqueeze(0).to(device)
-
-            # 调试: 输出输入张量的范围
+            
+            # 调试: 输出输入张量的形状和通道数 (新增)
             if x_start == 0 and y_start == 0:  # 只对第一个块输出，避免太多日志
-                print(f"[调试] 输入张量范围: sketch={sketch_tensor.min().item():.4f}-{sketch_tensor.max().item():.4f}, depth={depth_tensor.min().item():.4f}-{depth_tensor.max().item():.4f}")
+                print(f"[调试] 输入张量形状: sketch={sketch_tensor.shape}, depth={depth_tensor.shape}")
+                if semantic_tensor is not None:
+                    print(f"[调试] 语义张量形状: semantic={semantic_tensor.shape}")
             
             # For Lab color processing, we need a 3-channel version of the sketch
             sketch_rgb = None
@@ -248,10 +241,10 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
     # Convert to 8-bit image
     output_uint8 = (output_array * 255).astype(np.uint8)
     output_pil = Image.fromarray(output_uint8)
-    # # # !!!!应用FFT去除水平条纹
-    # output_pil = remove_horizontal_lines(output_pil, strength=0.8)  # 强度可以调整
+    
     # Save result
     output_pil.save(output_path)
     print(f"Processing complete! Result saved to {output_path}")
     
     return output_pil
+
