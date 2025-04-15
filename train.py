@@ -120,11 +120,11 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
                         use_lab_colorspace=use_lab_colorspace
                     )
                 
-                # !!!!# 在计算损失之前添加颜色增强（可选）
-                # if not use_lab_colorspace:
-                #     color_enhancement = 0.05  # 小的增强因子
-                #     mean_color = output.mean(dim=[2, 3], keepdim=True)
-                #     output = output + color_enhancement * (output - mean_color)
+                # 在计算损失之前添加颜色增强（可选）
+                if not use_lab_colorspace:
+                    color_enhancement = 0.05  # 小的增强因子
+                    mean_color = output.mean(dim=[2, 3], keepdim=True)
+                    output = output + color_enhancement * (output - mean_color)
                 
                 # 计算损失
                 if use_vgg_loss:

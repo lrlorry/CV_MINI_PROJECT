@@ -206,7 +206,7 @@ if __name__ == "__main__":
     parser.add_argument("--depth", required=True, help="深度图路径")
     
     # 可选参数
-    parser.add_argument("--semantic", default=None, help="语义掩码路径 (可选)")  # 新增参数
+    parser.add_argument("--semantic", default="semantic.png", help="语义掩码路径 (可选)")  # 新增参数
     parser.add_argument("--output", default="output", help="输出目录")
     parser.add_argument("--style", default=None, help="风格图像路径（可选）")
     
