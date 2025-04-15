@@ -9,7 +9,7 @@ from utils.image_filters import remove_horizontal_lines  # 假设你将函数放
 from utils.color_utils import apply_color_palette, enhance_hsv, color_quantization
 
 def process_high_res_image(model, sketch_path, depth_path, output_path, 
-                          style_path=None, block_size=512, overlap=64,
+                          semantic_path=None, style_path=None, block_size=512, overlap=64,
                           color_mode="original", palette_name='abao', 
                           palette_strength=0.8, hsv_saturation=1.5, hsv_value=1.2,
                           use_lab_colorspace=False):  
@@ -43,6 +43,14 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
     sketch_pil = Image.open(sketch_path).convert('L')
     depth_pil = Image.open(depth_path).convert('L')
     
+    # 加载语义掩码（如果提供）
+    semantic_pil = None
+    if semantic_path and hasattr(model, 'with_semantic') and model.with_semantic:
+        semantic_pil = Image.open(semantic_path).convert('L')
+        # 确保尺寸匹配
+        if semantic_pil.size != sketch_pil.size:
+            semantic_pil = semantic_pil.resize(sketch_pil.size, Image.NEAREST)
+
     # Get original dimensions
     original_width, original_height = sketch_pil.size
     print(f"Processing image size: {original_width}x{original_height}")
@@ -113,6 +121,13 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
             sketch_block = sketch_pil.crop((x_start, y_start, x_end, y_end))
             depth_block = depth_pil.crop((x_start, y_start, x_end, y_end))
             
+            # 提取语义块（如果有）
+            semantic_block = None
+            if semantic_pil is not None:
+                semantic_block = semantic_pil.crop((x_start, y_start, x_end, y_end))
+                if semantic_block.size != (block_size, block_size):
+                    semantic_block = semantic_block.resize((block_size, block_size), Image.NEAREST)
+
             # If block size is incorrect, resize
             if sketch_block.size != (block_size, block_size):
                 sketch_block = sketch_block.resize((block_size, block_size), Image.LANCZOS)
@@ -121,7 +136,11 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
             # Convert to tensors
             sketch_tensor = transform(sketch_block).unsqueeze(0).to(device)
             depth_tensor = transform(depth_block).unsqueeze(0).to(device)
-            
+            # 转换语义块（如果有）
+            semantic_tensor = None
+            if semantic_block is not None:
+                semantic_tensor = transform(semantic_block).unsqueeze(0).to(device)
+
             # 调试: 输出输入张量的范围
             if x_start == 0 and y_start == 0:  # 只对第一个块输出，避免太多日志
                 print(f"[调试] 输入张量范围: sketch={sketch_tensor.min().item():.4f}-{sketch_tensor.max().item():.4f}, depth={depth_tensor.min().item():.4f}-{depth_tensor.max().item():.4f}")
@@ -136,7 +155,10 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
             # Use model to generate output
             with torch.no_grad():
                 try:
-                    output = model(sketch_tensor, depth_tensor, style_image=style_tensor,
+                    output = model(sketch_tensor, 
+                                depth_tensor,
+                                semantic=semantic_tensor,
+                                style_image=style_tensor,
                                 original_image=sketch_rgb,
                                 use_lab_colorspace=use_lab_colorspace)
                     

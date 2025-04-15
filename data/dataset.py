@@ -5,24 +5,25 @@ from PIL import Image
 from torchvision import transforms
 
 class SketchDepthPatchDataset(Dataset):
-    """
-    从已有的素描图和深度图生成训练patches的数据集
-    """
-    def __init__(self, sketch_path, depth_path, target_path, 
-                patch_size=256, n_patches=1000, augment=True):
-        """
-        初始化数据集
-        Args:
-            sketch_path: 素描图路径
-            depth_path: 深度图路径
-            target_path: 目标彩色图路径
-            patch_size: 提取的patch大小
-            n_patches: 要从图像中提取的patch数量
-            augment: 是否使用数据增强
-        """
+    def __init__(self, sketch_path, depth_path, target_path, semantic_path=None, 
+            patch_size=256, n_patches=1000, augment=True):
+        # 现有初始化保持不变
         self.sketch = Image.open(sketch_path).convert('L')
         self.depth = Image.open(depth_path).convert('L')
         self.target = Image.open(target_path).convert('RGB')
+
+        # 确保所有图像尺寸相同
+        self.width, self.height = self.sketch.size
+        if self.depth.size != (self.width, self.height) or self.target.size != (self.width, self.height):
+            raise ValueError("素描图、深度图和目标图尺寸必须相同")
+        
+        # 添加语义掩码
+        self.semantic = None
+        if semantic_path:
+            self.semantic = Image.open(semantic_path).convert('L')
+            # 确保掩码尺寸与其他图像匹配
+            if self.semantic.size != (self.width, self.height):
+                self.semantic = self.semantic.resize((self.width, self.height), Image.NEAREST)
         
         # 确保所有图像尺寸相同
         self.width, self.height = self.sketch.size
@@ -70,7 +71,12 @@ class SketchDepthPatchDataset(Dataset):
         sketch_patch = self.sketch.crop((x, y, x + self.patch_size, y + self.patch_size))
         depth_patch = self.depth.crop((x, y, x + self.patch_size, y + self.patch_size))
         target_patch = self.target.crop((x, y, x + self.patch_size, y + self.patch_size))
-        
+
+        # 提取语义patch（如果有）
+        semantic_patch = None
+        if self.semantic is not None:
+            semantic_patch = self.semantic.crop((x, y, x + self.patch_size, y + self.patch_size))
+
         # 数据增强 - 必须对所有三个图像应用相同的变换
         if self.augment:
             # 将三个图像堆叠为一个PIL图像进行同步变换
@@ -92,9 +98,19 @@ class SketchDepthPatchDataset(Dataset):
         depth_tensor = self.transform(depth_patch)
         target_tensor = self.transform_color(target_patch)
         
-        return {
+        # 转换语义掩码（如果有）
+        semantic_tensor = None
+        if semantic_patch is not None:
+            semantic_tensor = self.transform(semantic_patch)
+        
+        result = {
             'sketch': sketch_tensor, 
             'depth': depth_tensor, 
             'target': target_tensor
         }
+        
+        if semantic_tensor is not None:
+            result['semantic'] = semantic_tensor
+            
+        return result
    

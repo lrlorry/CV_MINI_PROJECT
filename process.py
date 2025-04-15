@@ -6,7 +6,7 @@ from models.unet import SketchDepthColorizer
 from process.high_res import process_high_res_image
 from utils.color_utils import visualize_color_palettes
 
-def load_model(model_path, device=None, force_disable_style=False):
+def load_model(model_path, device=None, force_disable_style=False, force_disable_semantic=False):
     """加载模型"""
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -23,15 +23,20 @@ def load_model(model_path, device=None, force_disable_style=False):
     
     # 检查模型是否有样式编码器
     has_style_encoder = any('style' in key for key in state_dict.keys())
+    # 检查模型是否有语义输入支持
+    has_semantic_input = any('enc1.weight' in key for key in state_dict.keys() if 'enc1.weight' in key and state_dict[key].shape[1] > 2)
     
     # 如果强制禁用，则设置为False
     if force_disable_style:
         has_style_encoder = False
+    if force_disable_semantic:
+        has_semantic_input = False
         
     print(f"检测到模型{'有' if has_style_encoder else '没有'}样式编码器")
+    print(f"检测到模型{'支持' if has_semantic_input else '不支持'}语义输入")
     
     # 创建模型
-    model = SketchDepthColorizer(base_filters=16, with_style_encoder=has_style_encoder)
+    model = SketchDepthColorizer(base_filters=16, with_style_encoder=has_style_encoder, with_semantic=has_semantic_input)
     
     # 加载权重
     try:
@@ -57,16 +62,17 @@ def load_model(model_path, device=None, force_disable_style=False):
     
     return model
 
+
 def process_image(model_path, sketch_path, depth_path, output_dir="output",
-                 style_path=None, block_size=512, overlap=64, color_mode="original", 
+                 semantic_path=None, style_path=None, block_size=512, overlap=64, color_mode="original", 
                  palette_name="abao", palette_strength=0.8, hsv_saturation=1.5, hsv_value=1.2,
-                 use_lab_colorspace=False, force_disable_style=False):
+                 use_lab_colorspace=False, force_disable_style=False, force_disable_semantic=False):
     """处理图像"""
     # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
     
     # 加载模型
-    model = load_model(model_path, force_disable_style=force_disable_style)
+    model = load_model(model_path, force_disable_style=force_disable_style, force_disable_semantic=force_disable_semantic)
     
     # 确定输出路径
     output_filename = f"result_{color_mode}_{os.path.basename(sketch_path)}"
@@ -80,6 +86,14 @@ def process_image(model_path, sketch_path, depth_path, output_dir="output",
     print(f"处理图像:")
     print(f"  素描: {sketch_path}")
     print(f"  深度图: {depth_path}")
+    
+    # 添加语义掩码信息
+    if semantic_path and hasattr(model, 'with_semantic') and model.with_semantic:
+        print(f"  语义掩码: {semantic_path}")
+    elif semantic_path and not (hasattr(model, 'with_semantic') and model.with_semantic):
+        print(f"  警告: 模型不支持语义掩码，忽略语义掩码")
+        semantic_path = None
+
     if style_path and hasattr(model, 'with_style_encoder') and model.with_style_encoder:
         print(f"  风格图: {style_path}")
     elif style_path and not (hasattr(model, 'with_style_encoder') and model.with_style_encoder):
@@ -91,6 +105,7 @@ def process_image(model_path, sketch_path, depth_path, output_dir="output",
         model=model,
         sketch_path=sketch_path,
         depth_path=depth_path,
+        semantic_path=semantic_path,  # 新增参数
         output_path=output_path,
         style_path=style_path,
         block_size=block_size,
@@ -107,12 +122,13 @@ def process_image(model_path, sketch_path, depth_path, output_dir="output",
     return output_path
 
 def batch_process_all_styles(model_path, sketch_path, depth_path, output_dir="all_styles", 
-                            style_path=None, force_disable_style=False, use_lab_colorspace=False):
+                            semantic_path=None, style_path=None, force_disable_style=False, 
+                            force_disable_semantic=False, use_lab_colorspace=False):
     """批量处理所有颜色方案"""
     os.makedirs(output_dir, exist_ok=True)
     
     # 加载模型
-    model = load_model(model_path, force_disable_style=force_disable_style)
+    model = load_model(model_path, force_disable_style=force_disable_style, force_disable_semantic=force_disable_semantic)
     
     output_paths = []
     
@@ -123,6 +139,7 @@ def batch_process_all_styles(model_path, sketch_path, depth_path, output_dir="al
         model=model,
         sketch_path=sketch_path,
         depth_path=depth_path,
+        semantic_path=semantic_path,  # 新增参数
         output_path=output_path,
         style_path=style_path,
         color_mode="original",
@@ -189,27 +206,15 @@ if __name__ == "__main__":
     parser.add_argument("--depth", required=True, help="深度图路径")
     
     # 可选参数
+    parser.add_argument("--semantic", default=None, help="语义掩码路径 (可选)")  # 新增参数
     parser.add_argument("--output", default="output", help="输出目录")
     parser.add_argument("--style", default=None, help="风格图像路径（可选）")
-    parser.add_argument("--block_size", type=int, default=512, help="处理块大小")
-    parser.add_argument("--overlap", type=int, default=64, help="重叠像素数")
     
-    # 颜色处理选项
-    parser.add_argument("--color_mode", choices=["original", "palette", "hsv", "quantized"], 
-                       default="original", help="颜色处理模式")
-    parser.add_argument("--palette", default="abao", choices=list(COLOR_PALETTES.keys()), 
-                       help="调色板名称")
-    parser.add_argument("--palette_strength", type=float, default=0.8, 
-                       help="调色板应用强度 (0-1)")
-    parser.add_argument("--hsv_saturation", type=float, default=1.5, 
-                       help="HSV饱和度增强系数")
-    parser.add_argument("--hsv_value", type=float, default=1.2, 
-                       help="HSV亮度增强系数")
+    # 现有参数...
     
     # 功能开关
-    parser.add_argument("--use_lab", action="store_true", help="使用Lab颜色空间处理")
+    parser.add_argument("--no_semantic", action="store_true", help="强制禁用语义分割")  # 新增参数
     parser.add_argument("--no_style", action="store_true", help="强制禁用风格编码器")
-    parser.add_argument("--all_styles", action="store_true", help="批量处理所有颜色方案")
     
     args = parser.parse_args()
     
@@ -219,9 +224,11 @@ if __name__ == "__main__":
             model_path=args.model,
             sketch_path=args.sketch,
             depth_path=args.depth,
+            semantic_path=args.semantic,  # 新增参数
             output_dir=args.output,
             style_path=args.style,
             force_disable_style=args.no_style,
+            force_disable_semantic=args.no_semantic,  # 新增参数
             use_lab_colorspace=args.use_lab
         )
     else:
@@ -229,6 +236,7 @@ if __name__ == "__main__":
             model_path=args.model,
             sketch_path=args.sketch,
             depth_path=args.depth,
+            semantic_path=args.semantic,  # 新增参数
             output_dir=args.output,
             style_path=args.style,
             block_size=args.block_size,
@@ -239,5 +247,6 @@ if __name__ == "__main__":
             hsv_saturation=args.hsv_saturation,
             hsv_value=args.hsv_value,
             use_lab_colorspace=args.use_lab,
-            force_disable_style=args.no_style
+            force_disable_style=args.no_style,
+            force_disable_semantic=args.no_semantic  # 新增参数
         )

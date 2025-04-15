@@ -36,22 +36,26 @@ os.makedirs(vis_dir, exist_ok=True)
 
 loss_history = []
 
-def train_from_sketch_depth(sketch_path, depth_path, target_path, output_dir="models", 
-                          epochs=100, batch_size=8, patch_size=256, n_patches=1000,
-                          lr=0.0002, use_style_loss=True, finetune_epochs=10, 
-                          use_lab_colorspace=True, use_vgg_loss=True):
-    # 创建输出目录
-    os.makedirs(output_dir, exist_ok=True)
+def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=None, 
+                           output_dir="models", epochs=100, batch_size=8, patch_size=256, 
+                           n_patches=1000, lr=0.0002, use_style_loss=True, 
+                           finetune_epochs=10, use_lab_colorspace=True, use_vgg_loss=True):
     
     # 创建数据集和加载器
-    dataset = SketchDepthPatchDataset(sketch_path, depth_path, target_path, patch_size, n_patches)
+    dataset = SketchDepthPatchDataset(
+        sketch_path, depth_path, target_path, semantic_path=semantic_path,
+        patch_size=patch_size, n_patches=n_patches
+    )
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     
     # 设置设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
     # 创建模型
-    model = SketchDepthColorizer(base_filters=16, with_style_encoder=use_style_loss)
+    model = SketchDepthColorizer(
+        base_filters=16, 
+        with_style_encoder=use_style_loss, 
+        with_semantic=(semantic_path is not None)
+    )
     model = model.to(device)
     model.train()
     
@@ -86,14 +90,20 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, output_dir="mo
                 depth = batch['depth'].to(device)
                 target = batch['target'].to(device)
                 
+                # 如果有语义掩码，则使用它
+                semantic = batch.get('semantic')
+                if semantic is not None:
+                    semantic = semantic.to(device)
                 # 清除梯度
                 optimizer.zero_grad()
                 
                 # 前向传播
-                output = model(sketch, depth, 
-                              style_image=target if use_style_loss else None,
-                              original_image=target if use_lab_colorspace else None,
-                              use_lab_colorspace=use_lab_colorspace)
+                output = model(
+                    sketch, depth, semantic=semantic,
+                    style_image=target if use_style_loss else None,
+                    original_image=target if use_lab_colorspace else None,
+                    use_lab_colorspace=use_lab_colorspace
+                )
                 # 在计算损失之前添加颜色增强（可选，如果颜色仍然不够鲜艳）
                 if not use_lab_colorspace:  # 仅当不使用Lab空间时添加
                     # 略微增强颜色，不影响内容
@@ -314,6 +324,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="单图像深度学习 - 使用patch方式训练和重叠拼接推理")
     # 新增参数
+    parser.add_argument("--semantic", default='semantic.png', help="语义掩码路径 (可选)")
     parser.add_argument('--use_lab', action='store_true', help='使用Lab颜色空间处理')
     parser.add_argument('--use_vgg', action='store_true', help='使用VGG感知损失')
     parser.add_argument("--depth", default="depth.png", help="深度图路径 (仅process模式)")
@@ -333,6 +344,7 @@ if __name__ == "__main__":
         sketch_path=args.sketch,
         depth_path=args.depth,
         target_path=args.image,
+        semantic_path=args.semantic,
         output_dir=args.output,
         epochs=args.epochs,
         batch_size=args.batch_size,

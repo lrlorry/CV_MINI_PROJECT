@@ -6,12 +6,19 @@ from utils.lab_processor import LabColorProcessor
 
 # 修改后的U-Net架构，使用频域滤波去除水平伪影
 class SketchDepthColorizer(nn.Module):
-    def __init__(self, base_filters=16, with_style_encoder=True):
+    def __init__(self, base_filters=16, with_style_encoder=True, with_semantic=True):
         super().__init__()
         self.with_style_encoder = with_style_encoder
+        self.with_semantic = with_semantic
         
-        # 编码器 - 接收素描+深度图作为输入(2通道)
-        self.enc1 = nn.Conv2d(2, base_filters, 3, 1, 1)       # 素描(1通道)+深度图(1通道)
+        # 修改输入通道：素描(1) + 深度(1) + 语义掩码(1)（如果启用）
+        input_channels = 2
+        if with_semantic:
+            input_channels += 1
+            
+        # 修改编码器第一层
+        self.enc1 = nn.Conv2d(input_channels, base_filters, 3, 1, 1)
+        # 其余层保持不变...
         self.enc2 = nn.Conv2d(base_filters, base_filters*2, 4, 2, 1)  # 降采样到1/2
         self.enc3 = nn.Conv2d(base_filters*2, base_filters*4, 4, 2, 1)  # 降采样到1/4
         
@@ -51,9 +58,15 @@ class SketchDepthColorizer(nn.Module):
         self.dec2 = nn.ConvTranspose2d(base_filters*2 + base_filters*2, base_filters, 4, 2, 1)    # 上采样到原始大小
         self.dec1 = nn.Conv2d(base_filters + base_filters, 3, 3, 1, 1)    
     
-    def forward(self, sketch, depth, style_image=None, original_image=None, use_lab_colorspace=False):
-        # 合并素描和深度信息
-        x = torch.cat([sketch, depth], dim=1)
+    def forward(self, sketch, depth, semantic=None, style_image=None, original_image=None, use_lab_colorspace=False):
+        """
+        Forward pass with semantic mask
+        """
+        # 合并素描、深度和语义信息
+        if semantic is not None and self.with_semantic:
+            x = torch.cat([sketch, depth, semantic], dim=1)
+        else:
+            x = torch.cat([sketch, depth], dim=1)
         
         # 编码器前向传播
         e1 = F.relu(self.enc1(x))
