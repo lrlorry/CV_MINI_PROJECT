@@ -160,9 +160,15 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
                 val_depth = dataset[0]['depth'].unsqueeze(0).to(device)
                 val_target = dataset[0]['target'].unsqueeze(0).to(device)
                 
-                val_output = model(val_sketch, val_depth, 
-                                  original_image=val_target if use_lab_colorspace else None,
-                                  use_lab_colorspace=use_lab_colorspace)
+                # Get semantic data if available
+                val_semantic = None
+                if 'semantic' in dataset[0]:
+                    val_semantic = dataset[0]['semantic'].unsqueeze(0).to(device)
+
+                # Pass semantic data to the model
+                val_output = model(val_sketch, val_depth, semantic=val_semantic,
+                                original_image=val_target if use_lab_colorspace else None,
+                                use_lab_colorspace=use_lab_colorspace)
                 
                 save_triplet(sketch_path, depth_path, val_output, epoch+1, avg_epoch_loss)
             model.train()
@@ -197,7 +203,8 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
 
 
 def finetune_with_full_images(model, sketch_path, depth_path, target_path, output_dir, 
-                             epochs=10, lr=0.0001, device=None, use_lab_colorspace=True, use_vgg_loss=True):
+                             epochs=10, lr=0.0001, device=None, use_lab_colorspace=True, use_vgg_loss=True,
+                             semantic_path=None):  # Add semantic_path parameter
     """
     使用全图fine-tune模型,适用于已有素描和深度图的情况
     """
@@ -211,6 +218,17 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     sketch = Image.open(sketch_path).convert('L')
     depth = Image.open(depth_path).convert('L')
     target = Image.open(target_path).convert('RGB')
+    
+    # 加载语义掩码（如果提供）
+    semantic = None
+    if semantic_path and hasattr(model, 'with_semantic') and model.with_semantic:
+        try:
+            semantic = Image.open(semantic_path).convert('L')
+            print(f"Loaded semantic mask from {semantic_path}")
+        except Exception as e:
+            print(f"Failed to load semantic mask: {e}")
+            # 如果加载失败，创建一个空白掩码
+            semantic = None
     
     # 强制将图像调整到非常小的尺寸以适应GPU内存
     max_size = 512  # 使用非常保守的值，适合8GB显存
@@ -231,6 +249,10 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     depth = depth.resize((new_w, new_h), Image.LANCZOS)
     target = target.resize((new_w, new_h), Image.LANCZOS)
     
+    # 同样调整语义掩码大小（如果有）
+    if semantic is not None:
+        semantic = semantic.resize((new_w, new_h), Image.NEAREST)  # 使用NEAREST避免平滑掩码边界
+    
     # 转换为张量
     transform_gray = transforms.Compose([
         transforms.ToTensor(),
@@ -244,6 +266,11 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     sketch_tensor = transform_gray(sketch).unsqueeze(0).to(device)
     depth_tensor = transform_gray(depth).unsqueeze(0).to(device)
     target_tensor = transform_color(target).unsqueeze(0).to(device)
+    
+    # 转换语义掩码（如果有）
+    semantic_tensor = None
+    if semantic is not None:
+        semantic_tensor = transform_gray(semantic).unsqueeze(0).to(device)
     
     # 优化器 - 使用较小的学习率
     optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
@@ -259,7 +286,7 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     with tqdm(range(epochs), desc="Fine-tuning with full image") as pbar:
         for epoch in pbar:
             # 前向传播
-            output = model(sketch_tensor, depth_tensor, 
+            output = model(sketch_tensor, depth_tensor, semantic=semantic_tensor,
                           style_image=target_tensor if model.with_style_encoder else None,
                           original_image=target_tensor if use_lab_colorspace else None,
                           use_lab_colorspace=use_lab_colorspace)
@@ -291,7 +318,7 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
             if (epoch + 1) % 5 == 0 or epoch == epochs - 1:
                 with torch.no_grad():
                     model.eval()
-                    val_output = model(sketch_tensor, depth_tensor,
+                    val_output = model(sketch_tensor, depth_tensor, semantic=semantic_tensor,
                                      original_image=target_tensor if use_lab_colorspace else None,
                                      use_lab_colorspace=use_lab_colorspace)
                     
@@ -314,7 +341,6 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     print(f"Fine-tuned model saved to {ft_model_path}")
     
     return ft_model_path
-
 
 # 主函数
 if __name__ == "__main__":
