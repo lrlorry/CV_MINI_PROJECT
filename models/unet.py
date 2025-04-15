@@ -56,17 +56,17 @@ class SketchDepthColorizer(nn.Module):
     
     def forward(self, sketch, depth, style_image=None, original_image=None, use_lab_colorspace=False):
         """
-        Forward pass with balanced color enhancement
+        Forward pass with simple and effective processing like in U_Net_block_v1.py
         """
-        # 合并素描和深度信息
+        # 合并素描和深度信息 - 不做任何梯度操作
         x = torch.cat([sketch, depth], dim=1)
         
-        # 编码器前向传播
+        # 编码器前向传播 - 保持与原版相同
         e1 = F.relu(self.enc1(x))
         e2 = F.relu(self.enc2(e1))
         e3 = F.relu(self.enc3(e2))
         
-        # 处理样式信息（保持不变）
+        # 处理样式信息 - 复制原版逻辑
         if self.with_style_encoder and style_image is not None:
             s1 = F.relu(self.style_enc1(style_image))
             s2 = F.relu(self.style_enc2(s1))
@@ -89,18 +89,10 @@ class SketchDepthColorizer(nn.Module):
         d3 = F.relu(self.dec3(torch.cat([b, e3], dim=1)))
         d2 = F.relu(self.dec2(torch.cat([d3, e2], dim=1)))
         
-        # 使用温和的颜色增强
-        raw_output = self.dec1(torch.cat([d2, e1], dim=1))
-        d1 = torch.tanh(raw_output)
+        # 核心改变: 采用与原版完全相同的简单处理
+        d1 = torch.tanh(self.dec1(torch.cat([d2, e1], dim=1)))
         
-        # 添加温和的对比度增强 - 参数比之前小很多
-        enhancement_factor = 0.02  # 非常小的增强因子
-        d1 = d1 * (1.0 + enhancement_factor) - d1.mean(dim=[2, 3], keepdim=True) * enhancement_factor
-        
-        # 确保值仍在有效范围内
-        d1 = torch.clamp(d1, -1.0, 1.0)
-        
-        # Lab颜色空间处理（保持不变）
+        # 保留Lab空间处理功能，但简化处理
         if use_lab_colorspace and original_image is not None:
             lab_processor = LabColorProcessor(device=d1.device)
             d1 = lab_processor.process_ab_channels(original_image, d1)
