@@ -35,10 +35,10 @@ log_path = "outputs/training.log"
 os.makedirs(vis_dir, exist_ok=True)
 
 loss_history = []
-
+#!!!!
 def train_from_sketch_depth(sketch_path, depth_path, target_path, output_dir="models", 
                           epochs=100, batch_size=8, patch_size=256, n_patches=1000,
-                          lr=0.0002, use_style_loss=True, finetune_epochs=10, 
+                          lr=0.0002, use_style_loss=False, finetune_epochs=10, 
                           use_lab_colorspace=True, use_vgg_loss=True):
     # 创建输出目录
     os.makedirs(output_dir, exist_ok=True)

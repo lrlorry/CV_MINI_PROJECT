@@ -129,7 +129,7 @@ python process.py --mode process --model models/final_model.pth --sketch sketch.
 scp -i ~/.ssh/id_rsa paperspace@184.105.3.72:/home/paperspace/CV_MINI_PROJECT/output/result_original_sketch.png .
 scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.162:/home/paperspace/CV_MINI_PROJECT/all_styles_with_lab/ .
 
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.4.203:/home/paperspace/CV_MINI_PROJECT/results/ .
+scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.232:/home/paperspace/CV_MINI_PROJECT/results/ .
 
 scp -i ~/.ssh/id_rsa -r paperspace@184.105.3.39:/home/paperspace/CV_MINI_PROJECT/outputs .
 
@@ -140,3 +140,6 @@ cat outputs/training.log
 
 
 chmod +x predict_full.sh
+
+
+会不会是因为梯度爆炸，因为train.py为了vgg全部改成了tensor 张量
