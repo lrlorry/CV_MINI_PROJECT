@@ -89,8 +89,16 @@ class SketchDepthColorizer(nn.Module):
             # e3 = self.style_modulation(torch.cat([e3, style_spatial], dim=1))
             # style_spatial 是形状和 e3 一样的 style 特征图
             # e3 = adaptive_instance_normalization(e3, style_spatial)
+            # 统一 shape
+            if style_features.dim() == 2:
+                style_feat = style_features.view(style_features.size(0), style_features.size(1), 1, 1)
+                style_feat = style_feat.expand_as(e3)
+            else:
+                style_feat = style_features
+
+            # AdaIN with alpha
             alpha = 0.5
-            e3_adain = adaptive_instance_normalization(e3, style_features)
+            e3_adain = adaptive_instance_normalization(e3, style_feat)
             e3 = alpha * e3_adain + (1 - alpha) * e3
 
         
