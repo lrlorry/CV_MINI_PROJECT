@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 import torchvision.transforms as transforms
 from tqdm import tqdm
-from utils.image_filters import fft_horizontal_stripe_removal  # 假设你将函数放在这个模块
+from utils.image_filters import remove_horizontal_lines  # 假设你将函数放在这个模块
 
 from utils.color_utils import apply_color_palette, enhance_hsv, color_quantization
 
@@ -225,8 +225,8 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
     # Convert to 8-bit image
     output_uint8 = (output_array * 255).astype(np.uint8)
     output_pil = Image.fromarray(output_uint8)
-    # !!!!应用FFT去除水平条纹
-    output_pil = fft_horizontal_stripe_removal(output_pil, strength=0.7)  # 强度可以调整
+    # # !!!!应用FFT去除水平条纹
+    output_pil = remove_horizontal_lines(output_pil, strength=0.8)  # 强度可以调整
     # Save result
     output_pil.save(output_path)
     print(f"Processing complete! Result saved to {output_path}")
