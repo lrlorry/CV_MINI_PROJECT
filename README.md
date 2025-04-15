@@ -109,7 +109,7 @@ python U-Net-block.py --mode train --sketch sketch.png --depth depth.png --image
 
 # 处理模式（应用训练好的模型）：
 python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --palette abao --color_mode palette
-python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --color_mode palette
+python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --color_mode original
 # 使用特定颜色风格处理：
 python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --color_mode palette --palette cyberpunk
 
