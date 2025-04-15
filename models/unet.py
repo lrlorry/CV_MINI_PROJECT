@@ -76,8 +76,10 @@ class SketchDepthColorizer(nn.Module):
             
             batch_size = e3.size(0)
             style_spatial = style_features.view(batch_size, -1, 1, 1).expand_as(e3)
-            
-            e3 = self.style_modulation(torch.cat([e3, style_spatial], dim=1))
+            #!!!!
+            # e3 = self.style_modulation(torch.cat([e3, style_spatial], dim=1))
+            # style_spatial 是形状和 e3 一样的 style 特征图
+            e3 = self.adaptive_instance_normalization(e3, style_spatial)
         
         # 应用自注意力
         e3 = self.attention(e3)
@@ -98,3 +100,16 @@ class SketchDepthColorizer(nn.Module):
             d1 = lab_processor.process_ab_channels(original_image, d1)
         
         return d1
+    
+    def adaptive_instance_normalization(content_feat, style_feat, eps=1e-5):
+        """
+        调整内容特征的均值/方差以匹配 style 特征。
+        content_feat, style_feat: 形状为 [B, C, H, W]
+        """
+        c_mean = content_feat.mean(dim=[2, 3], keepdim=True)
+        c_std = content_feat.std(dim=[2, 3], keepdim=True) + eps
+        s_mean = style_feat.mean(dim=[2, 3], keepdim=True)
+        s_std = style_feat.std(dim=[2, 3], keepdim=True)
+
+        normalized = (content_feat - c_mean) / c_std
+        return normalized * s_std + s_mean
