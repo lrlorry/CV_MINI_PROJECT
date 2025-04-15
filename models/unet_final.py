@@ -4,7 +4,71 @@ import torch.nn.functional as F
 from models.attention import SelfAttention
 from utils.lab_processor import LabColorProcessor
 
-# 修改后的U-Net架构，使用频域滤波去除水平伪影
+class DirectHorizontalLineFilter(nn.Module):
+    """
+    直接针对水平线条的滤波器，使用更激进的方法移除伪影
+    """
+    def __init__(self, strength=0.8):
+        super().__init__()
+        self.strength = strength
+        
+    def forward(self, x):
+        """
+        直接移除水平线条
+        Args:
+            x: 输入特征图 [B, C, H, W]
+        Returns:
+            去除水平线条后的特征图
+        """
+        batch_size, channels, height, width = x.size()
+        device = x.device
+        
+        # 创建中值滤波器 - 垂直方向有效去除水平线
+        # 对每个通道单独进行处理
+        filtered = torch.zeros_like(x)
+        
+        # 垂直方向的均值滤波，保留水平方向的细节
+        kernel_size = 5  # 垂直方向的核大小，较大的值会更强烈地消除水平线
+        padding = kernel_size // 2
+        
+        for b in range(batch_size):
+            for c in range(channels):
+                # 获取当前通道数据
+                current = x[b, c].unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
+                
+                # 计算垂直方向的滑动平均
+                # 创建只在垂直方向有长度的核
+                vertical_kernel = torch.ones(kernel_size, 1, device=device) / kernel_size
+                vertical_kernel = vertical_kernel.view(1, 1, kernel_size, 1)
+                
+                # 使用卷积实现垂直方向的滑动平均
+                padded = F.pad(current, (0, 0, padding, padding), mode='replicate')
+                vertical_smoothed = F.conv2d(padded, vertical_kernel)
+                
+                # 检测水平线 - 如果一行的值相似度高，可能是水平线
+                # 计算每一行的标准差
+                row_std = torch.std(current, dim=3, keepdim=True)  # [1, 1, H, 1]
+                
+                # 创建掩码 - 低标准差表示水平线（因为整行都很相似）
+                # 使用平滑的sigmoid而不是硬阈值以获得更自然的过渡
+                threshold = 0.05
+                line_mask = torch.sigmoid((threshold - row_std) * 10)  # [1, 1, H, 1]
+                
+                # 平滑掩码以避免锐利边缘
+                smooth_kernel = torch.ones(5, 1, device=device) / 5
+                smooth_kernel = smooth_kernel.view(1, 1, 5, 1)
+                padded_mask = F.pad(line_mask, (0, 0, 2, 2), mode='replicate')
+                line_mask = F.conv2d(padded_mask, smooth_kernel)
+                
+                # 应用掩码 - 水平线区域使用垂直平滑结果，其他区域保持原样
+                strength = self.strength  # 控制效果强度
+                blended = current * (1 - line_mask * strength) + vertical_smoothed * (line_mask * strength)
+                
+                filtered[b, c] = blended.squeeze()
+                
+        return filtered
+
+# 修改后的U-Net架构
 class SketchDepthColorizer(nn.Module):
     def __init__(self, base_filters=16, with_style_encoder=True):
         super().__init__()
@@ -51,13 +115,11 @@ class SketchDepthColorizer(nn.Module):
         self.dec2 = nn.ConvTranspose2d(base_filters*2 + base_filters*2, base_filters, 4, 2, 1)
         self.dec1 = nn.Conv2d(base_filters + base_filters, 3, 3, 1, 1)
         
-        # 添加专门的水平线条消除过滤器
-        self.h_line_filter = HorizontalLineFilter()
-    
-    def simple_blur(self, x, kernel_size=3):
-        """应用简单的高斯模糊"""
-        padding = kernel_size // 2
-        return F.avg_pool2d(x, kernel_size=kernel_size, stride=1, padding=padding)
+        # 添加直接水平线过滤器
+        self.line_filter = DirectHorizontalLineFilter(strength=0.8)
+        
+        # 添加最终输出阶段的抗伪影处理
+        self.final_filter = DirectHorizontalLineFilter(strength=0.9)
     
     def forward(self, sketch, depth, style_image=None, original_image=None, use_lab_colorspace=False):
         # 合并素描和深度信息
@@ -68,9 +130,8 @@ class SketchDepthColorizer(nn.Module):
         e2 = F.relu(self.enc2(e1))
         e3 = F.relu(self.enc3(e2))
         
-        # 应用水平线条滤波器
-        if hasattr(self, 'h_line_filter'):
-            e3 = self.h_line_filter(e3)
+        # 应用水平线条过滤器
+        e3 = self.line_filter(e3)
         
         # 处理样式信息
         if self.with_style_encoder and style_image is not None:
@@ -106,12 +167,17 @@ class SketchDepthColorizer(nn.Module):
         d3 = F.relu(self.dec3(torch.cat([b, e3], dim=1)))
         d2 = F.relu(self.dec2(torch.cat([d3, e2], dim=1)))
         
-        # 再次应用水平线条滤波器
-        if hasattr(self, 'h_line_filter'):
-            d2 = self.h_line_filter(d2)
+        # 再次应用水平线条过滤器
+        d2 = self.line_filter(d2)
         
-        # 输出
-        d1 = torch.tanh(self.dec1(torch.cat([d2, e1], dim=1)))
+        # 预输出
+        pre_out = self.dec1(torch.cat([d2, e1], dim=1))
+        
+        # 应用最终的水平线条过滤器
+        filtered_out = self.final_filter(pre_out)
+        
+        # 最终输出
+        d1 = torch.tanh(filtered_out)
         
         # 应用Lab颜色空间处理（如果启用）
         if use_lab_colorspace and original_image is not None:
@@ -119,70 +185,3 @@ class SketchDepthColorizer(nn.Module):
             d1 = lab_processor.process_ab_channels(original_image, d1)
         
         return d1
-
-class HorizontalLineFilter(nn.Module):
-    """专门用于去除水平线条伪影的频域滤波器"""
-    def __init__(self):
-        super().__init__()
-        
-    def forward(self, x):
-        """
-        使用频域滤波去除水平线条
-        
-        Args:
-            x: 输入特征图 [B, C, H, W]
-            
-        Returns:
-            去除水平线条后的特征图
-        """
-        batch_size, channels, height, width = x.size()
-        
-        # 对每个通道单独处理
-        output = []
-        for c in range(channels):
-            channel_data = x[:, c:c+1]  # [B, 1, H, W]
-            
-            # 如果可用，使用torch的FFT
-            try:
-                # 将数据转换到频域
-                fft_data = torch.fft.rfft2(channel_data)
-                
-                # 创建频域掩码 - 抑制水平频率
-                mask = torch.ones_like(fft_data)
-                
-                # 抑制水平线（位于频域的y轴上）
-                # 注意：在FFT中，低频在中心，高频在边缘
-                # 我们使用低通过滤去除刚好对应水平线的频率
-                h_center = height // 2
-                
-                # 对应于水平线的频率
-                line_width = 1  # 控制抑制的频带宽度，越大效果越强但可能影响细节
-                for i in range(1, 10):  # 锁定水平线对应的不同频率
-                    freq_y = i * (height // 10)
-                    if freq_y < mask.shape[2]:
-                        # 只抑制这些特定频率，保留其他频率
-                        mask[:, :, freq_y-line_width:freq_y+line_width+1, :] *= 0.2  # 不完全消除，而是减弱
-                
-                # 应用掩码并转换回空域
-                filtered_fft = fft_data * mask
-                filtered_channel = torch.fft.irfft2(filtered_fft, s=(height, width))
-                
-                output.append(filtered_channel)
-            except:
-                # 如果FFT不可用，回退到空域滤波
-                # 创建专门针对水平线的滤波器
-                kernel_v = torch.ones((5, 1), device=x.device) / 5  # 垂直方向的模糊核
-                kernel_v = kernel_v.view(1, 1, 5, 1).repeat(1, 1, 1, 1)
-                
-                # 应用垂直模糊，这会平滑水平线
-                padded = F.pad(channel_data, (0, 0, 2, 2), mode='replicate')
-                filtered_channel = F.conv2d(padded, kernel_v, padding=0, groups=1)
-                
-                # 使用高频增强补偿模糊引起的细节损失
-                high_freq = channel_data - filtered_channel
-                enhanced = filtered_channel + high_freq * 0.5  # 保留50%的高频细节
-                
-                output.append(enhanced)
-        
-        # 合并所有处理后的通道
-        return torch.cat(output, dim=1)

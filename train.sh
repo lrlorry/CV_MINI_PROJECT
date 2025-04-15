@@ -4,7 +4,7 @@ python3 train.py \
   --image jcsmr.jpg \
   --sketch sketch.jpg \
   --output models \
-  --epochs 20 \
-  --finetune_epochs 5 \
+  --epochs 100 \
+  --finetune_epochs 20 \
   --resume models/latest.pth \
   2>&1 | tee outputs/training.log"
