@@ -221,7 +221,8 @@ def process_high_res_image(model, sketch_path, depth_path, output_path,
     if np.isnan(output_array).any() or np.isinf(output_array).any():
         print(f"Warning: NaN or Inf values detected in final output")
         output_array = np.nan_to_num(output_array, nan=0.5, posinf=1.0, neginf=0.0)
-    
+
+    output_array = np.clip(output_array, 0.0, 1.0)
     # Convert to 8-bit image
     output_uint8 = (output_array * 255).astype(np.uint8)
     output_pil = Image.fromarray(output_uint8)
