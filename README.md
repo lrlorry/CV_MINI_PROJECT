@@ -110,6 +110,7 @@ python U-Net-block.py --mode train --sketch sketch.png --depth depth.png --image
 # 处理模式（应用训练好的模型）：
 python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --palette abao --color_mode palette
 python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --color_mode original
+python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 512 --overlap 128 --color_mode hsv
 # 使用特定颜色风格处理：
 python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --color_mode palette --palette cyberpunk
 
@@ -145,4 +146,4 @@ chmod +x predict_full.sh
 会不会是因为梯度爆炸，因为train.py为了vgg全部改成了tensor 张量
 
 
-分块，vgg lab 调色盘/多种风格 数据增强 梯度爆炸 数据增强-后处理-块状伪影/色块边界 3d 素描图 深度图 finetune 语意切割
+分块，vgg lab 调色盘/多种风格 数据增强 梯度爆炸 数据增强-后处理-块状伪影/色块边界 3d 素描图 深度图 finetune 语义分割
