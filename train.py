@@ -24,14 +24,14 @@ from utils.visualization import record_loss, generate_loss_curve, generate_video
 VIS_INTERVAL = 10
 image_size = (256, 256)
 
-vis_dir = "outputs/epoch_vis_full"
-gif_path = "outputs/training_progress.gif"
-mp4_path = "outputs/training_progress.mp4"
-curve_path = "outputs/loss_curve.png"
-metric_txt_path = "outputs/metrics_summary.txt"
-metric_md_path = "outputs/metrics_summary.md"
-metric_xlsx_path = "outputs/metrics_summary.xlsx"
-log_path = "outputs/training.log"
+vis_dir = "train_metrics/epoch_vis_full"
+gif_path = "train_metrics/training_progress.gif"
+mp4_path = "train_metrics/training_progress.mp4"
+curve_path = "train_metrics/loss_curve.png"
+metric_txt_path = "train_metrics/metrics_summary.txt"
+metric_md_path = "train_metrics/metrics_summary.md"
+metric_xlsx_path = "train_metrics/metrics_summary.xlsx"
+log_path = "train_metrics/training.log"
 os.makedirs(vis_dir, exist_ok=True)
 
 loss_history = []
@@ -413,7 +413,7 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
 if __name__ == "__main__":
     # 创建必要的目录
     os.makedirs("models", exist_ok=True)
-    os.makedirs("outputs", exist_ok=True)
+    os.makedirs("train_metrics", exist_ok=True)
     
     parser = argparse.ArgumentParser(description="单图像深度学习 - 使用patch方式训练和重叠拼接推理")
     # 新增参数

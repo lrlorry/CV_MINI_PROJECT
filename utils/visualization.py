@@ -14,7 +14,7 @@ import imageio
 from natsort import natsorted
 
 # ==== 记录 loss ====
-def record_loss(loss, loss_history=None, log_path="outputs/training.log"):
+def record_loss(loss, loss_history=None, log_path="train_metrics/training.log"):
     """
     记录损失值到历史记录和日志文件
     
@@ -40,7 +40,7 @@ def record_loss(loss, loss_history=None, log_path="outputs/training.log"):
     return loss_history
 
 # ==== 生成 loss 曲线图 ====
-def generate_loss_curve(loss_history, curve_path="outputs/loss_curve.png"):
+def generate_loss_curve(loss_history, curve_path="train_metrics/loss_curve.png"):
     """
     生成并保存损失曲线图
     
@@ -60,11 +60,11 @@ def generate_loss_curve(loss_history, curve_path="outputs/loss_curve.png"):
     print(f"损失曲线已保存到 {curve_path}")
 
 # ==== 生成 gif/mp4 & 评估指标 ====
-def generate_video_and_metrics(vis_dir="outputs/epoch_vis_full", 
-                              mp4_path="outputs/training_progress.mp4",
-                              metric_txt_path="outputs/metrics_summary.txt",
-                              metric_md_path="outputs/metrics_summary.md",
-                              metric_xlsx_path="outputs/metrics_summary.xlsx"):
+def generate_video_and_metrics(vis_dir="train_metrics/epoch_vis_full", 
+                              mp4_path="train_metrics/training_progress.mp4",
+                              metric_txt_path="train_metrics/metrics_summary.txt",
+                              metric_md_path="train_metrics/metrics_summary.md",
+                              metric_xlsx_path="train_metrics/metrics_summary.xlsx"):
     """
     生成训练进度视频和计算图像质量指标
     
@@ -139,7 +139,7 @@ def generate_video_and_metrics(vis_dir="outputs/epoch_vis_full",
         print("没有可用的评估结果，可能是因为没有找到可视化文件")
 
 
-def generate_finetune_metrics_with_plot(vis_dir="models", 
+def generate_finetune_metrics_with_plot(vis_dir="finetune_metrics", 
                                         metric_txt_path=None,
                                         metric_md_path=None,
                                         metric_xlsx_path=None,
