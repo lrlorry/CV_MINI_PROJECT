@@ -393,16 +393,22 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     torch.save(model.state_dict(), ft_model_path)
     print(f"Fine-tuned model saved to {ft_model_path}")
     
+    # 创建metrics_finetune目录
+    metrics_dir = "metrics_finetune"
+    os.makedirs(metrics_dir, exist_ok=True)
+    
+    # 在这里添加对评估指标生成函数的调用，并修改保存路径
     print("正在生成微调评估指标...")
     generate_finetune_metrics_with_plot(
         vis_dir=output_dir,
-        metric_txt_path=f"{output_dir}/finetune_metrics_summary.txt",
-        metric_md_path=f"{output_dir}/finetune_metrics_summary.md",
-        metric_xlsx_path=f"{output_dir}/finetune_metrics_summary.xlsx",
-        curve_path=f"{output_dir}/finetune_metrics_curve.png"
+        metric_txt_path=f"{metrics_dir}/metrics_summary.txt",
+        metric_md_path=f"{metrics_dir}/metrics_summary.md",
+        metric_xlsx_path=f"{metrics_dir}/metrics_summary.xlsx",
+        curve_path=f"{metrics_dir}/finetune_metrics_curve.png"
     )
     
     return ft_model_path
+
 # 主函数
 if __name__ == "__main__":
     # 创建必要的目录
