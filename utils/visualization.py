@@ -10,6 +10,8 @@ import imageio
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
 import pandas as pd
+import imageio
+from natsort import natsorted
 
 # ==== 记录 loss ====
 def record_loss(loss, loss_history=None, log_path="outputs/training.log"):
@@ -270,9 +272,6 @@ def generate_finetune_metrics_with_plot(vis_dir="models",
     # 如果finetune输出图像足够多，还可以生成GIF
     if len(finetune_files) > 1:
         try:
-            import imageio
-            from natsort import natsorted
-            
             frames = []
             sorted_files = natsorted(finetune_files)  # 确保正确的自然排序
             for f in sorted_files:
