@@ -7,5 +7,5 @@ python3 train.py \
   --epochs 100 \
   --finetune_epochs 20 \
   --resume models/latest.pth \
-  --no_style' \
+  --no_style \
   2>&1 | tee outputs/training.log"
