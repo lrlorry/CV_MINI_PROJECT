@@ -18,7 +18,7 @@ from models.unet import SketchDepthColorizer
 from data.dataset import SketchDepthPatchDataset
 from loss.combined_loss import CombinedLoss
 from utils.image_utils import save_triplet
-from utils.visualization import record_loss, generate_loss_curve, generate_video_and_metrics
+from utils.visualization import record_loss, generate_loss_curve, generate_video_and_metrics, generate_finetune_metrics_with_plot
 
 # ==== 配置 ====
 VIS_INTERVAL = 10
@@ -392,6 +392,15 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     ft_model_path = f"{output_dir}/finetuned_model.pth"
     torch.save(model.state_dict(), ft_model_path)
     print(f"Fine-tuned model saved to {ft_model_path}")
+    
+    print("正在生成微调评估指标...")
+    generate_finetune_metrics_with_plot(
+        vis_dir=output_dir,
+        metric_txt_path=f"{output_dir}/finetune_metrics_summary.txt",
+        metric_md_path=f"{output_dir}/finetune_metrics_summary.md",
+        metric_xlsx_path=f"{output_dir}/finetune_metrics_summary.xlsx",
+        curve_path=f"{output_dir}/finetune_metrics_curve.png"
+    )
     
     return ft_model_path
 # 主函数
