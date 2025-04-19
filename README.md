@@ -137,11 +137,12 @@ chmod +x predict_full.sh
 
 base 素描图 深度图 分块 注意力 
 -样式编码器
-+数据增强
+-数据增强
 -finetune
 -语义分割
 +vgg
 +lab
+all
 
 功能：
 
