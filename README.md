@@ -145,6 +145,8 @@ base 素描图 深度图 分块 自注意力机制  l1
 -lab
 混合 损失函数
 +all
+学习率衰减
+调色版
 功能：
 
 伪影-调试batchsize 和 overlapsize解决的，尝试了各种方法
