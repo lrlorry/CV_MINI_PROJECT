@@ -26,11 +26,12 @@ def save_image(tensor, filename):
 
 # ==== 保存拼接图像 ====
 def save_triplet(sketch_path, depth_path, pred_tensor, epoch, loss, target_path="jcsmr.jpg", vis_dir="metrics_train/epoch_vis_full"):
-    # 增加加载原图
-    target = resize(Image.open(target_path).convert("RGB"))
+
     to_pil = T.ToPILImage()
     resize = T.Resize((256, 256))
-
+    
+    # 增加加载原图
+    target = resize(Image.open(target_path).convert("RGB"))
     sketch = resize(Image.open(sketch_path).convert("RGB"))
     depth = resize(Image.open(depth_path).convert("L")).convert("RGB")
     pred = to_pil(pred_tensor.squeeze(0).cpu().clamp(0, 1))
