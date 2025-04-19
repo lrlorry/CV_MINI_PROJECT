@@ -72,7 +72,7 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
     # 损失函数
     if use_vgg_loss:
         print("Using VGG perceptual loss")
-        combined_loss = CombinedLoss(lambda_l1=1.0, lambda_perceptual=0.1)
+        combined_loss = CombinedLoss(lambda_l1=1.0, lambda_perceptual=0.5)
         combined_loss = combined_loss.to(device)
     else:
         print("Using L1 loss only")
@@ -196,8 +196,9 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
                                       style_image=val_target if use_style_loss else None,
                                       original_image=val_target if use_lab_colorspace else None,
                                       use_lab_colorspace=use_lab_colorspace)
-                
-                save_triplet(sketch_path, depth_path, val_output, epoch+1, avg_epoch_loss)
+                    
+                save_triplet(sketch_path, depth_path, val_output, epoch+1, avg_epoch_loss, target_path=target_path)
+
             model.train()
         
         # 保存模型检查点
