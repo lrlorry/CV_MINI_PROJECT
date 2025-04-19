@@ -32,6 +32,19 @@ declare -a dirs=(
   "finetune_model_result"
 )
 
+# tmux new -s sketch_train -d "\
+# python3 train.py \
+#   --depth depth.png \
+#   --image jcsmr.jpg \
+#   --sketch sketch.jpg \
+#   --output models \
+#   --epochs 100 \
+#   --finetune_epochs 50 \
+#   --resume models/latest.pth \
+#   --no_style \
+#   2>&1 | tee metrics_train/training.log"
+
+#样式编码
 tmux new -s sketch_train -d "\
 python3 train.py \
   --depth depth.png \
@@ -41,5 +54,4 @@ python3 train.py \
   --epochs 100 \
   --finetune_epochs 50 \
   --resume models/latest.pth \
-  --no_style \
   2>&1 | tee metrics_train/training.log"
