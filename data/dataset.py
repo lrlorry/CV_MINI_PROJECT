@@ -3,6 +3,7 @@ import random
 from torch.utils.data import Dataset
 from PIL import Image
 from torchvision import transforms
+import os
 
 class SketchDepthPatchDataset(Dataset):
     def __init__(self, sketch_path, depth_path, target_path, semantic_path=None, 
@@ -19,7 +20,7 @@ class SketchDepthPatchDataset(Dataset):
         
         # 添加语义掩码
         self.semantic = None
-        if semantic_path:
+        if semantic_path and semantic_path.strip() and os.path.exists(semantic_path):
             self.semantic = Image.open(semantic_path).convert('L')
             # 确保掩码尺寸与其他图像匹配
             if self.semantic.size != (self.width, self.height):
