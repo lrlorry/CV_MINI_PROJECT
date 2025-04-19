@@ -54,5 +54,4 @@ python3 train.py \
   --epochs 100 \
   --finetune_epochs 100 \
   --no_style \
-  --use_vgg \
   2>&1 | tee metrics_train/training.log"
