@@ -135,7 +135,7 @@ chmod +x predict_full.sh
 会不会是因为梯度爆炸，因为train.py为了vgg全部改成了tensor 张量
 
 
-base 素描图 深度图 分块 自注意力机制 
+base 素描图 深度图 分块 自注意力机制  l1
 -样式编码器
 -数据增强
 -finetune

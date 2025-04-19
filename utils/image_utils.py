@@ -25,7 +25,9 @@ def save_image(tensor, filename):
     vutils.save_image(tensor, filename)
 
 # ==== 保存拼接图像 ====
-def save_triplet(sketch_path, depth_path, pred_tensor, epoch, loss, vis_dir="metrics_train/epoch_vis_full"):
+def save_triplet(sketch_path, depth_path, pred_tensor, epoch, loss, target_path="jcsmr.jpg", vis_dir="metrics_train/epoch_vis_full"):
+    # 增加加载原图
+    target = resize(Image.open(target_path).convert("RGB"))
     to_pil = T.ToPILImage()
     resize = T.Resize((256, 256))
 
@@ -38,6 +40,7 @@ def save_triplet(sketch_path, depth_path, pred_tensor, epoch, loss, vis_dir="met
     canvas.paste(sketch, (0, 25))
     canvas.paste(depth, (w, 25))
     canvas.paste(pred, (w * 2, 25))
+    canvas.paste(target, (w * 3, 25))  # 添加原图
 
     draw = ImageDraw.Draw(canvas)
     draw.text((10, 5), f"Epoch {epoch} | Loss: {loss:.4f}", fill=(255, 255, 255))
