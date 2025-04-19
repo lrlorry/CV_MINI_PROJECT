@@ -27,7 +27,7 @@ project/
 # 训练脚本
 
 # 创建必要的目录
-mkdir -p models outputs
+mkdir -p models metrics_train
 
 # 在tmux会话中运行训练，便于持久化
 tmux new -s sketch_train -d "\
@@ -40,11 +40,11 @@ python train.py \
   --finetune_epochs 10 \
   --use_lab \
   --use_vgg \
-  2>&1 | tee outputs/training.log"
+  2>&1 | tee metrics_train/training.log"
 
 echo "训练已在tmux会话 'sketch_train' 中启动"
 echo "可以通过 tmux attach -t sketch_train 连接到该会话"
-echo "训练日志保存在 outputs/training.log"
+echo "训练日志保存在 metrics_train/training.log"
 
 # process.sh
 #!/bin/bash
@@ -108,9 +108,8 @@ echo "批量处理完成! 结果保存在 all_styles 目录下"
 python U-Net-block.py --mode train --sketch sketch.png --depth depth.png --image original.png --output models --epochs 100 --finetune_epochs 10
 
 # 处理模式（应用训练好的模型）：
-python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --palette abao --color_mode palette
-python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 128 --overlap 64 --color_mode original
-python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 512 --overlap 128 --color_mode hsv
+python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 512 --overlap 64 --palette abao --color_mode palette
+
 # 使用特定颜色风格处理：
 python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --color_mode palette --palette cyberpunk
 
@@ -128,16 +127,17 @@ python process.py --mode process --model models/final_model.pth --sketch sketch.
 
 
 scp -i ~/.ssh/id_rsa paperspace@184.105.3.72:/home/paperspace/CV_MINI_PROJECT/output/result_original_sketch.png .
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.162:/home/paperspace/CV_MINI_PROJECT/all_styles_with_lab/ .
+scp -i ~/.ssh/id_rsa -r paperspace@184.105.6.89:/home/paperspace/CV_MINI_PROJECT/all_styles_with_lab/ .
 
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.4.46:/home/paperspace/CV_MINI_PROJECT/results/ .
+scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.146:/home/paperspace/CV_MINI_PROJECT/results/ .
 
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.3.39:/home/paperspace/CV_MINI_PROJECT/outputs .
+scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.146:/home/paperspace/CV_MINI_PROJECT/metrics_train/ .
+scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.146:/home/paperspace/CV_MINI_PROJECT/metrics_finetune/ .
 
 chmod +x train.sh
 bash train.sh
 tmux attach -t sketch_train
-cat outputs/training.log
+cat metrics_train/training.log
 
 
 chmod +x predict_full.sh

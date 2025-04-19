@@ -25,7 +25,7 @@ def save_image(tensor, filename):
     vutils.save_image(tensor, filename)
 
 # ==== 保存拼接图像 ====
-def save_triplet(sketch_path, depth_path, pred_tensor, epoch, loss, vis_dir="train_metrics/epoch_vis_full"):
+def save_triplet(sketch_path, depth_path, pred_tensor, epoch, loss, vis_dir="metrics_train/epoch_vis_full"):
     to_pil = T.ToPILImage()
     resize = T.Resize((256, 256))
 

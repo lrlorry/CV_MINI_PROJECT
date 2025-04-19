@@ -8,7 +8,7 @@
 #   --finetune_epochs 10 \
 #   --resume models/latest.pth \
 #   --no_style \
-#   2>&1 | tee train_metrics/training.log"
+#   2>&1 | tee metrics_train/training.log"
 
 
 # tmux new -s sketch_train -d "\
@@ -22,7 +22,7 @@
 #   --finetune_epochs 10 \
 #   --resume models/latest.pth \
 #   --no_style \
-#   2>&1 | tee train_metrics/training.log"
+#   2>&1 | tee metrics_train/training.log"
 
 tmux new -s sketch_train -d "\
 python3 train.py \
@@ -35,4 +35,4 @@ python3 train.py \
   --finetune_epochs 10 \
   --resume models/latest.pth \
   --no_style \
-  2>&1 | tee train_metrics/training.log"
+  2>&1 | tee metrics_train/training.log"

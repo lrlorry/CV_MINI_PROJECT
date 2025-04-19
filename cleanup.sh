@@ -4,7 +4,7 @@ echo "开始清理项目目录..."
 DIRS_TO_REMOVE=(
   "./metrics_finetune"
   "./outputs"
-  "./train_metrics"
+  "./metrics_train"
   "./results_original"
   "./results_v2"
   "./results_with_lab"

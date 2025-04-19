@@ -40,7 +40,7 @@ def record_loss(loss, loss_history=None, log_path="train_metrics/training.log"):
     return loss_history
 
 # ==== 生成 loss 曲线图 ====
-def generate_loss_curve(loss_history, curve_path="train_metrics/loss_curve.png"):
+def generate_loss_curve(loss_history, curve_path="metrics_train/loss_curve.png"):
     """
     生成并保存损失曲线图
     
@@ -60,11 +60,11 @@ def generate_loss_curve(loss_history, curve_path="train_metrics/loss_curve.png")
     print(f"损失曲线已保存到 {curve_path}")
 
 # ==== 生成 gif/mp4 & 评估指标 ====
-def generate_video_and_metrics(vis_dir="train_metrics/epoch_vis_full", 
-                              mp4_path="train_metrics/training_progress.mp4",
-                              metric_txt_path="train_metrics/metrics_summary.txt",
-                              metric_md_path="train_metrics/metrics_summary.md",
-                              metric_xlsx_path="train_metrics/metrics_summary.xlsx"):
+def generate_video_and_metrics(vis_dir="metrics_train/epoch_vis_full", 
+                              mp4_path="metrics_train/training_progress.mp4",
+                              metric_txt_path="metrics_train/metrics_summary.txt",
+                              metric_md_path="metrics_train/metrics_summary.md",
+                              metric_xlsx_path="metrics_train/metrics_summary.xlsx"):
     """
     生成训练进度视频和计算图像质量指标
     
