@@ -1,30 +1,55 @@
 #!/bin/bash
-# 使用Lab颜色空间处理进行推理
+# process_all.sh - Script to run all processing commands
+# Usage: bash process_all.sh
 
-# 原始处理
-python3 process.py \
-  --mode process \
-  --sketch sketch.jpg \
-  --depth depth.png \
-  --model models/final_model.pth \
-  --output results_original \
-  --color_mode original
+echo "Starting image processing..."
 
-# 启用Lab空间处理
-python3 process.py \
-  --mode process \
-  --sketch sketch.jpg \
-  --depth depth.png \
-  --model models/final_model.pth \
-  --output results_with_lab \
-  --color_mode original \
-  --use_lab
+# Create output directories
+mkdir -p results/finetuned
 
-# 生成所有风格
-python3 process.py \
-  --mode all_styles \
-  --sketch sketch.jpg \
-  --depth depth.png \
-  --model models/final_model.pth \
-  --output all_styles_with_lab \
-  --use_lab
+# Common parameters
+SKETCH="sketch.jpg"
+DEPTH="depth.png"
+BLOCK_SIZE=512
+OVERLAP=256
+
+# Process with regular model
+echo "Processing with regular model (final_model.pth)..."
+
+echo "[1/8] Running original color mode..."
+python3 process.py --mode process --model models/final_model.pth --sketch $SKETCH --depth $DEPTH \
+  --output final_model_result --block_size $BLOCK_SIZE --overlap $OVERLAP --color_mode original
+
+echo "[2/8] Running HSV color mode..."
+python3 process.py --mode process --model models/final_model.pth --sketch $SKETCH --depth $DEPTH \
+  --output final_model_result --block_size $BLOCK_SIZE --overlap $OVERLAP --color_mode hsv
+
+echo "[3/8] Running palette color mode..."
+python3 process.py --mode process --model models/final_model.pth --sketch $SKETCH --depth $DEPTH \
+  --output final_model_result --block_size $BLOCK_SIZE --overlap $OVERLAP --color_mode palette
+
+echo "[4/8] Running quantized color mode..."
+python3 process.py --mode process --model models/final_model.pth --sketch $SKETCH --depth $DEPTH \
+  --output final_model_result --block_size $BLOCK_SIZE --overlap $OVERLAP --color_mode quantized
+
+# Process with finetuned model
+echo "Processing with finetuned model (finetuned_model.pth)..."
+
+echo "[5/8] Running original color mode (finetuned)..."
+python3 process.py --mode process --model models/finetuned_model.pth --sketch $SKETCH --depth $DEPTH \
+  --output finetune_model_result --block_size $BLOCK_SIZE --overlap $OVERLAP --color_mode original
+
+echo "[6/8] Running HSV color mode (finetuned)..."
+python3 process.py --mode process --model models/finetuned_model.pth --sketch $SKETCH --depth $DEPTH \
+  --output finetune_model_result --block_size $BLOCK_SIZE --overlap $OVERLAP --color_mode hsv
+
+echo "[7/8] Running palette color mode (finetuned)..."
+python3 process.py --mode process --model models/finetuned_model.pth --sketch $SKETCH --depth $DEPTH \
+  --output finetune_model_result --block_size $BLOCK_SIZE --overlap $OVERLAP --color_mode palette
+
+echo "[8/8] Running quantized color mode (finetuned)..."
+python3 process.py --mode process --model models/finetuned_model.pth --sketch $SKETCH --depth $DEPTH \
+  --output finetune_model_result --block_size $BLOCK_SIZE --overlap $OVERLAP --color_mode quantized
+
+echo "All processing complete!"
+echo "Results saved to 'final_model_result' and 'finetune_model_result' directories."
