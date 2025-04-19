@@ -69,10 +69,19 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
                           lr=lr, betas=(0.5, 0.999))
     
+    # 添加学习率调度器
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, 
+        mode='min',     # 监控损失值
+        factor=0.5,     # 学习率减半
+        patience=5,     # 5个epoch没改善则降低学习率
+        verbose=True,   # 打印学习率变化
+        min_lr=1e-5     # 最小学习率
+    )
     # 损失函数
     if use_vgg_loss:
         print("Using VGG perceptual loss")
-        combined_loss = CombinedLoss(lambda_l1=1.0, lambda_perceptual=0.5)
+        combined_loss = CombinedLoss(lambda_l1=1.0, lambda_perceptual=0.3)
         combined_loss = combined_loss.to(device)
     else:
         print("Using L1 loss only")
@@ -161,7 +170,10 @@ def train_from_sketch_depth(sketch_path, depth_path, target_path, semantic_path=
                                    perceptual=loss_info['perceptual'])
                 else:
                     pbar.set_postfix(loss=total_loss.item())
-                
+
+            # 在每个epoch结束后调用
+            scheduler.step(epoch_loss / len(dataloader))
+
         # 计算平均epoch损失
         avg_epoch_loss = epoch_loss / len(dataloader)
         global loss_history
@@ -317,7 +329,7 @@ def finetune_with_full_images(model, sketch_path, depth_path, target_path, outpu
     
     # 损失函数
     if use_vgg_loss:
-        combined_loss = CombinedLoss(lambda_l1=1.0, lambda_perceptual=0.5)
+        combined_loss = CombinedLoss(lambda_l1=1.0, lambda_perceptual=0.3)
         combined_loss = combined_loss.to(device)
     else:
         l1_loss = nn.L1Loss()

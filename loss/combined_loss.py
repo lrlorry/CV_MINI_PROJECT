@@ -187,7 +187,7 @@ class CombinedLoss(nn.Module):
     Combined loss: L1 loss + VGG perceptual loss
     Fixed to preserve gradients
     """
-    def __init__(self, lambda_l1=1.0, lambda_perceptual=0.5):
+    def __init__(self, lambda_l1=1.0, lambda_perceptual=0.3):
         super(CombinedLoss, self).__init__()
         self.lambda_l1 = lambda_l1
         self.lambda_perceptual = lambda_perceptual
