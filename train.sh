@@ -23,6 +23,14 @@
 #   --resume models/latest.pth \
 #   --no_style \
 #   2>&1 | tee metrics_train/training.log"
+#!/bin/bash
+
+declare -a dirs=(
+  "metrics_train"
+  "metrics_finetune"
+  "final_model_result"
+  "finetune_model_result"
+)
 
 tmux new -s sketch_train -d "\
 python3 train.py \

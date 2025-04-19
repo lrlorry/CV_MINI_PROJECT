@@ -123,17 +123,6 @@ python3 train.py --mode train --sketch sketch.png --depth depth.png --image jcsm
 
 
 
-python process.py --mode process --model models/final_model.pth --sketch sketch.png --depth depth.png --output output
-
-
-scp -i ~/.ssh/id_rsa paperspace@184.105.3.72:/home/paperspace/CV_MINI_PROJECT/output/result_original_sketch.png .
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.6.89:/home/paperspace/CV_MINI_PROJECT/all_styles_with_lab/ .
-
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.146:/home/paperspace/CV_MINI_PROJECT/results/ .
-
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.146:/home/paperspace/CV_MINI_PROJECT/metrics_train/ .
-scp -i ~/.ssh/id_rsa -r paperspace@184.105.5.146:/home/paperspace/CV_MINI_PROJECT/metrics_finetune/ .
-
 chmod +x train.sh
 bash train.sh
 tmux attach -t sketch_train
