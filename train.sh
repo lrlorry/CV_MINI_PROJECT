@@ -31,8 +31,8 @@ python3 train.py \
   --sketch sketch.jpg \
   --semantic “” \
   --output models \
-  --epochs 10 \
-  --finetune_epochs 10 \
+  --epochs 100 \
+  --finetune_epochs 50 \
   --resume models/latest.pth \
   --no_style \
   2>&1 | tee metrics_train/training.log"
