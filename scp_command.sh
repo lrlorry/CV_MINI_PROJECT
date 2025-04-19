@@ -1,6 +1,6 @@
 MY_IP=184.105.6.89
 REMOTE_USER=paperspace
-OUTPUT_DIR=./base_semantic_null_enhance_nostyle_finetune_50  # 本地输出目录
+OUTPUT_DIR=./base_semantic # 本地输出目录
 
 mkdir -p $OUTPUT_DIR  # 如果目录不存在则创建
 
