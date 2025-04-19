@@ -37,7 +37,6 @@ python3 train.py \
   --depth depth.png \
   --image jcsmr.jpg \
   --sketch sketch.jpg \
-  --semantic semantic.png \
   --output models \
   --epochs 100 \
   --finetune_epochs 50 \
