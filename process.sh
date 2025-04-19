@@ -10,7 +10,7 @@ mkdir -p results/finetuned
 # Common parameters
 SKETCH="sketch.jpg"
 DEPTH="depth.png"
-BLOCK_SIZE=512
+BLOCK_SIZE=256
 OVERLAP=64
 
 # Process with regular model
