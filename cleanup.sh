@@ -9,7 +9,7 @@ DIRS_TO_REMOVE=(
   "./results_v2"
   "./results_with_lab"
   "./all_styles_with_lab"
-  "./models"
+#   "./models"
   "./results"
   "./final_model_result"
   "./finetune_model_result"
