@@ -52,6 +52,8 @@ python3 train.py \
   --sketch sketch.jpg \
   --output models \
   --epochs 100 \
-  --finetune_epochs 50 \
+  --finetune_epochs 100 \
+  --no_style \
+  --use_lab \
   --resume models/latest.pth \
   2>&1 | tee metrics_train/training.log"
