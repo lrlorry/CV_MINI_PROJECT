@@ -11,7 +11,7 @@ mkdir -p results/finetuned
 SKETCH="sketch.jpg"
 DEPTH="depth.png"
 BLOCK_SIZE=512
-OVERLAP=32
+OVERLAP=64
 
 # Process with regular model
 echo "Processing with regular model (final_model.pth)..."

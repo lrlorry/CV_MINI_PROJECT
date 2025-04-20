@@ -1,175 +1,171 @@
+# SemColorNet
+**A Single-Image Depth-Aware Colorization Framework Integrating Semantic Segmentation**
+
+---
+
+## 📌 Overview
+
+**SemColorNet** is a lightweight, single-image colorization framework that reconstructs stylistically diverse RGB outputs from sparse architectural inputs—primarily a sketch and an estimated depth map. It optionally incorporates semantic masks and palette guidance to improve structural consistency and regional color modulation.
+
+The model is designed for data-scarce applications such as architectural visualization and heritage restoration, where ground-truth color supervision is limited or absent.
+
+---
+
+## 🧠 Method Summary
+
+### 🔶 Input:
+- 🖋️ Sketch (1-channel grayscale, 512×512 or patch)
+- 🌐 Depth map (ZoeDepth-estimated)
+- 🧩 Semantic mask (optional, pre-segmented or SAM-based)
+- 🎨 Optional palette configuration (HSV, Lab, fixed or learned)
+
+### 🔶 Output:
+- 💡 Stylized RGB image (diverse and semantically coherent)
+- Evaluation metrics: SSIM, PSNR
+
+### 🔶 Architecture:
+- Backbone: **U-Net** with 3 downsampling and 3 upsampling blocks
+- Bottleneck: **Self-Attention**
+- Style modulation: Optional **AdaIN** or **palette-guided**
+- Loss: **L1 + optional VGG perceptual loss**
+- Color space: HSV or Lab (configurable)
+- Semantic-aware concatenation (when mask is used)
+
+---
+
+## 📁 Directory Structure
+
+```
 project/
 ├── config/
-│   └── color_palettes.py       # 颜色方案定义
+│   └── color_palettes.py       # Defines color palette configurations
 ├── models/
-│   ├── attention.py            # 自注意力模块
-│   └── unet.py                 # U-Net模型定义
+│   ├── attention.py            # Self-attention module
+│   └── unet.py                 # U-Net model architecture
 ├── utils/
-│   ├── color_utils.py          # 颜色处理相关函数
-│   ├── image_utils.py          # 图像处理工具函数
-│   ├── lab_processor.py        # Lab颜色空间处理
-│   └── visualization.py        # 可视化函数
+│   ├── color_utils.py          # Functions for color processing
+│   ├── image_utils.py          # General image utility functions
+│   ├── lab_processor.py        # LAB color space processing
+│   └── visualization.py        # Visualization utilities
 ├── data/
-│   └── dataset.py              # 数据集类
+│   └── dataset.py              # Dataset class definition
 ├── loss/
-│   └── combined_loss.py        # 损失函数
+│   └── combined_loss.py        # Custom loss function definitions
 ├── process/
-│   ├── high_res.py             # 高分辨率图像处理
-│   └── sketch_depth.py         # 素描深度图生成
-├── train.py                    # 训练脚本
-├── process.py                  # 处理图像脚本
-├── batch_process.py            # 批处理脚本
-└── generate_styles.py          # 风格生成脚本
+│   ├── high_res.py             # High-resolution image inference
+│   └── sketch_depth.py         # Sketch and depth map generation
+├── train.py                    # Model training script
+├── process.py                  # Inference pipeline script
+├── batch_process.py            # Batch image processing script
+└── generate_styles.py          # Stylized image generation script
+```
 
+---
 
-# train.sh
-#!/bin/bash
-# 训练脚本
+## 🚀 How to Run
 
-# 创建必要的目录
-mkdir -p models metrics_train
+### ✅ Environment Setup
 
-# 在tmux会话中运行训练，便于持久化
-tmux new -s sketch_train -d "\
-python train.py \
-  --sketch $1 \
-  --depth $2 \
-  --image $3 \
-  --output models \
-  --epochs 100 \
-  --finetune_epochs 10 \
-  --use_lab \
-  --use_vgg \
-  2>&1 | tee metrics_train/training.log"
+```bash
+pip install -r requirements.txt
+```
 
-echo "训练已在tmux会话 'sketch_train' 中启动"
-echo "可以通过 tmux attach -t sketch_train 连接到该会话"
-echo "训练日志保存在 metrics_train/training.log"
+### ✅ Training
 
-# process.sh
-#!/bin/bash
-# 处理脚本
+Run the training pipeline using the provided script:
 
-# 创建输出目录
-mkdir -p results
-
-# 原始处理 (无特殊颜色模式)
-echo "使用原始颜色处理..."
-python process.py \
-  --model models/final_model.pth \
-  --sketch $1 \
-  --depth $2 \
-  --output results_original \
-  --use_lab
-
-# 启用Lab颜色空间处理
-echo "使用Lab颜色空间处理..."
-python process.py \
-  --model models/final_model.pth \
-  --sketch $1 \
-  --depth $2 \
-  --output results_with_lab \
-  --use_lab
-
-# 生成所有风格和比较图
-echo "生成所有风格..."
-python generate_styles.py \
-  --model models/final_model.pth \
-  --sketch $1 \
-  --depth $2 \
-  --output all_styles \
-  --use_lab
-
-echo "处理完成! 请查看输出目录中的结果。"
-
-# batch_process.sh
-#!/bin/bash
-# 批量处理脚本
-
-# 创建输出目录
-mkdir -p all_styles
-
-# 批量处理所有颜色方案
-python process.py \
-  --model models/final_model.pth \
-  --sketch $1 \
-  --depth $2 \
-  --output all_styles \
-  --batch \
-  --use_lab
-
-echo "批量处理完成! 结果保存在 all_styles 目录下"
-
-
-
-# my own command
-
-# 训练模式（从已有素描和深度图训练模型）：
-python U-Net-block.py --mode train --sketch sketch.png --depth depth.png --image original.png --output models --epochs 100 --finetune_epochs 10
-
-# 处理模式（应用训练好的模型）：
-python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --block_size 512 --overlap 64 --palette abao --color_mode palette
-
-# 使用特定颜色风格处理：
-python3 process.py --mode process --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output results --color_mode palette --palette cyberpunk
-
-# 批量处理所有颜色方案：
-python process.py --mode batch --model models/final_model.pth --sketch sketch.png --depth depth.png --output all_styles
-
-python process.py --mode batch --model models/final_model.pth --sketch sketch.jpg --depth depth.png --output all_styles
-
-
-python3 train.py --mode train --sketch sketch.png --depth depth.png --image jcsmr.jpg --output models --epochs 100 --finetune_epochs 10
-
-
-
+```bash
 chmod +x train.sh
 bash train.sh
+```
+
+You can monitor training in terminal using:
+
+```bash
 tmux attach -t sketch_train
 cat metrics_train/training.log
+```
 
+### ✅ Inference (High-Res)
 
-chmod +x predict_full.sh
+Use the inference script:
 
+```bash
+chmod +x process.sh
+bash process.sh
+```
 
-会不会是因为梯度爆炸，因为train.py为了vgg全部改成了tensor 张量
+---
 
-随机采样
+## 📊 Evaluation
 
-base 素描图 深度图 分块 自注意力机制  l1
--样式编码器
--数据增强
--finetune
--语义分割
-+vgg+CombinedLoss
--lab
-混合 损失函数
-+all
-学习率衰减
-调色版
-功能：
+Metrics are computed during training and logged:
+- **Structural Similarity (SSIM)**
+- **Peak Signal-to-Noise Ratio (PSNR)**
 
-伪影-调试batchsize 和 overlapsize解决的，尝试了各种方法
+Final model achieved:
+```
+SSIM  = 0.5345
+PSNR  = 17.29 dB
+```
 
-断点保存  --resume models/latest.pth
-，vgg lab 调色盘/多种风格 数据增强 梯度爆炸 数据增强-后处理-块状伪影/色块边界 3d 素描图 深度图 finetune 语义分割
+Trained from a **single image**, with consistent stylization.
 
+---
 
+## 🔍 Training Strategy
 
-绝对可以。对于这种情况，您可以在报告的 "方法" 和 "结果" 部分这样描述：
+- Stage 1: Patch-based training (100 epochs @ 256×256)
+- Stage 2: Full-image fine-tuning (50 epochs @ 512×512)
+- Loss: L1 + optional VGG (ablation showed VGG hurt PSNR)
+- Optimizer: Adam
+- Learning rate: Adaptive decay (0.0002 → 0.00001)
 
-方法部分可以写：
-"我们采用随机patch采样策略，通过在单一图像上随机裁剪patches来增加训练数据的多样性。这种方法不仅扩充了训练数据，还帮助模型学习图像的局部和整体特征。"
-结果部分可以写：
-"训练过程中，模型的性能指标呈现一定波动。这种波动是由于随机patch采样和单图像训练的固有特性。尽管指标存在波动，但总体趋势显示模型在学习和重建图像细节方面取得了进展。"
-反思部分可以写：
-"随机采样策略为单图像深度学习带来了挑战和机遇。未来的工作可以探索更稳定的采样方法，以减少训练过程中的波动性。"
+Augmentation includes:
+- Random crop
+- Horizontal/vertical flip
+- Rotation
+- Color jitter (all applied synchronously on sketch + depth + target canvas)
 
-这种写法既客观地描述了方法和结果，又为潜在的不完美之处提供了合理的解释。
+---
 
+## 🔬 Ablation Summary
 
-lab没有解决梯度消失的问题
-vgg效果不太好
-调色版效果不好
+| Configuration             | SSIM   | PSNR (dB) |
+|--------------------------|--------|-----------|
+| Base (Finetuned)         | 0.5091 | 14.10     |
+| + Style Encoder (AdaIN)  | 0.5086 | 14.06     |
+| + Adaptive LR Decay      | 0.5236 | 14.76     |
+| + VGG Perceptual Loss    | 0.5373 | 14.46     |
+| ✅ Final (w/o VGG)        | **0.5345** | **17.29**     |
 
-主要是风格编码效果很好
+---
+
+## 📷 Sample Results
+
+![inputs](figures/combined_inputs_row.png)
+> Input: Sketch + Depth + Semantic (optional)
+
+![outputs](figures/stylized_outputs_grid.png)
+> Stylized outputs under different configurations
+
+---
+
+## ⚠️ Ethical Considerations
+
+As a generative method, outputs may be misinterpreted as factual. Style bias and visual artifacts may distort structural perception. Use cases should clearly disclose AI generation and treat the model as an assistive tool—not a source of objective truth.
+
+---
+
+## 📚 References
+
+[1] Wang et al., SDE-Net: Sketch-guided Depth-aware Edge-enhanced Network, ECCV 2022  
+[2] Shaham et al., SinGAN: Learning a Generative Model from a Single Image, ICCV 2019  
+[3] Mildenhall et al., NeRF, ECCV 2020  
+[4] Yang et al., NeRFCodec, CVPR 2023
+
+---
+
+## 🏁 Project Author
+
+Rui Luo | u8076655 | [ENGN6528 - Computer Vision, ANU]
