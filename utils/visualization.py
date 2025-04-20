@@ -94,7 +94,7 @@ def generate_video_and_metrics(vis_dir="metrics_train/epoch_vis_full",
 
         # 提取预测结果和真实输入区域
         pred = img.crop((image_size[0]*2, 25, image_size[0]*3, 25+image_size[1]))
-        gt = img.crop((0, 25, image_size[0], 25+image_size[1]))  # 替换为真实 GT 可提高准确性
+        gt = img.crop((image_size[0]*3, 25, image_size[0]*4, 25+image_size[1]))
 
         # 转换为浮点数组并确保在范围[0,1]内
         pred_np = np.asarray(pred).astype(np.float32) / 255.0

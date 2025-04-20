@@ -1,0 +1,25 @@
+epoch_005.png: SSIM=0.5093, PSNR=13.75dB
+epoch_010.png: SSIM=0.5104, PSNR=14.23dB
+epoch_015.png: SSIM=0.5141, PSNR=14.41dB
+epoch_020.png: SSIM=0.5182, PSNR=14.59dB
+epoch_025.png: SSIM=0.5188, PSNR=14.44dB
+epoch_030.png: SSIM=0.5209, PSNR=14.60dB
+epoch_035.png: SSIM=0.5234, PSNR=14.81dB
+epoch_040.png: SSIM=0.5251, PSNR=14.95dB
+epoch_045.png: SSIM=0.5250, PSNR=14.88dB
+epoch_050.png: SSIM=0.5238, PSNR=14.67dB
+epoch_055.png: SSIM=0.5253, PSNR=14.88dB
+epoch_060.png: SSIM=0.5246, PSNR=14.67dB
+epoch_065.png: SSIM=0.5259, PSNR=14.83dB
+epoch_070.png: SSIM=0.5263, PSNR=14.79dB
+epoch_075.png: SSIM=0.5290, PSNR=15.07dB
+epoch_080.png: SSIM=0.5294, PSNR=15.22dB
+epoch_085.png: SSIM=0.5298, PSNR=15.06dB
+epoch_090.png: SSIM=0.5309, PSNR=15.06dB
+epoch_095.png: SSIM=0.5303, PSNR=15.02dB
+epoch_100.png: SSIM=0.5324, PSNR=15.23dB
+
+Average SSIM: 0.5236
+Average PSNR: 14.76 dB
+Best SSIM: 0.5324 (Epoch 100)
+Best PSNR: 15.23 dB (Epoch 100)

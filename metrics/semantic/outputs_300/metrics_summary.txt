@@ -1,0 +1,34 @@
+epoch_005.png: SSIM=0.0154, PSNR=0.63dB
+epoch_010.png: SSIM=0.0742, PSNR=1.12dB
+epoch_020.png: SSIM=0.2481, PSNR=3.21dB
+epoch_030.png: SSIM=0.1820, PSNR=2.40dB
+epoch_040.png: SSIM=0.0559, PSNR=0.90dB
+epoch_050.png: SSIM=0.3580, PSNR=4.49dB
+epoch_060.png: SSIM=0.3783, PSNR=5.95dB
+epoch_070.png: SSIM=0.6067, PSNR=10.60dB
+epoch_080.png: SSIM=0.3398, PSNR=5.05dB
+epoch_090.png: SSIM=0.6742, PSNR=15.29dB
+epoch_100.png: SSIM=0.5649, PSNR=9.68dB
+epoch_110.png: SSIM=0.3181, PSNR=4.59dB
+epoch_120.png: SSIM=0.3650, PSNR=4.87dB
+epoch_130.png: SSIM=0.2316, PSNR=3.00dB
+epoch_140.png: SSIM=0.6541, PSNR=14.83dB
+epoch_150.png: SSIM=0.2201, PSNR=2.36dB
+epoch_160.png: SSIM=0.1309, PSNR=1.91dB
+epoch_170.png: SSIM=0.2877, PSNR=3.77dB
+epoch_180.png: SSIM=0.6270, PSNR=12.52dB
+epoch_190.png: SSIM=0.2499, PSNR=3.56dB
+epoch_200.png: SSIM=0.5956, PSNR=11.88dB
+epoch_210.png: SSIM=0.6066, PSNR=10.53dB
+epoch_220.png: SSIM=0.5926, PSNR=10.31dB
+epoch_230.png: SSIM=0.4426, PSNR=8.07dB
+epoch_240.png: SSIM=0.6060, PSNR=11.59dB
+epoch_250.png: SSIM=0.2204, PSNR=2.94dB
+epoch_260.png: SSIM=0.1591, PSNR=2.47dB
+epoch_270.png: SSIM=0.2120, PSNR=2.50dB
+epoch_280.png: SSIM=0.3950, PSNR=5.56dB
+epoch_290.png: SSIM=0.5580, PSNR=9.13dB
+epoch_300.png: SSIM=0.3311, PSNR=3.82dB
+
+Average SSIM: 0.3645
+Average PSNR: 6.11 dB

@@ -1,0 +1,102 @@
+flowchart TD
+    subgraph Input
+        A[Sketch Image] --> D1
+        B[Depth Map] --> D1
+        C[Target RGB Image] --> D1
+        M[Semantic Mask] -.-> D1
+    end
+
+    subgraph DataProcessing["Data Processing"]
+        D1[SketchDepthPatchDataset] --> |"Extract Patches"| D2["Patches (sketch, depth, target)"]
+        D2 --> |"Data Augmentation"| D3["Augmented Patches"]
+    end
+
+    subgraph Model["Model Architecture"]
+        E1["SketchDepthColorizer (U-Net)"]
+        subgraph Encoder["Encoder"]
+            E2["Sketch + Depth + Semantic Input"] --> E3["Encoding Layers"]
+            E3 --> E4["Feature Maps"]
+        end
+        
+        subgraph StyleEncoder["Style Encoder (Optional)"]
+            S1["Reference RGB Image"] -.-> S2["Style Extraction Layers"]
+            S2 -.-> S3["Style Processor"]
+            S3 -.-> S4["Style Features"]
+        end
+
+        subgraph SelfAttention["Self-Attention"]
+            A1["Feature Maps"] --> A2["Self-Attention Module"]
+            A2 --> A3["Attended Features"]
+        end
+
+        subgraph StyleModulation["Style Modulation (Optional)"]
+            SM1["Content Features"] -.-> SM2["Style Modulation"]
+            S4 -.-> SM2
+            SM2 -.-> SM3["Weighted Features"]
+            SM3 -.-> |"99% Content + 1% Style"| SM4["Modulated Features"]
+        end
+
+        subgraph Decoder["Decoder"]
+            D4["Bottleneck"] --> D5["Decoding Layers"]
+            D5 --> |"Skip Connections"| D6["Output RGB Image"]
+        end
+    end
+
+    subgraph Loss["Loss Calculation"]
+        L1["Predicted RGB"] --> L2["Loss Functions"]
+        L3["Target RGB"] --> L2
+        L2 --> |"L1 Loss"| L4["L1 Component"]
+        L2 --> |"VGG Perceptual Loss"| L5["Perceptual Component"]
+        L4 --> L6["Combined Loss"]
+        L5 --> L6
+    end
+
+    subgraph Training["Training Process"]
+        T1["Training Patches"] --> T2["Forward Pass"]
+        T2 --> T3["Loss Calculation"]
+        T3 --> T4["Backward Pass"]
+        T4 --> T5["Parameter Update"]
+        T5 --> |"Next Epoch"| T2
+        T3 --> |"Record Loss"| T6["Loss History"]
+        T6 --> T7["Visualization"]
+    end
+
+    subgraph FineTuning["Fine-Tuning"]
+        F1["Full Image"] --> F2["Fine-Tune Model"]
+        F2 --> F3["Fine-Tuned Model"]
+    end
+
+    subgraph Inference["Inference Process"]
+        I1["High-Res Input"] --> I2["Block-wise Processing"]
+        I2 --> I3["Overlap-tile Strategy"]
+        I3 --> I4["Merge Blocks"]
+        I4 --> I5["Post-Processing"]
+    end
+
+    subgraph ColorProcessing["Color Processing"]
+        CP1["Raw Output"] --> |"Original"| CP2["Original Colors"]
+        CP1 --> |"Palette"| CP3["Color Palette Mapping"]
+        CP1 --> |"HSV"| CP4["HSV Enhancement"]
+        CP1 --> |"Quantized"| CP5["Color Quantization"]
+        CP1 --> |"LAB"| CP6["LAB Color Space Processing"]
+    end
+
+    D3 --> T1
+    E4 --> A1
+    A3 --> SM1
+    E1 --- Encoder
+    E1 --- StyleEncoder
+    E1 --- SelfAttention
+    E1 --- StyleModulation
+    E1 --- Decoder
+    SM4 --> D4
+    D6 --> L1
+    F3 --> I1
+    I5 --> CP1
+    
+    %% Main flow connections
+    DataProcessing --> Training
+    Model --> Training
+    Training --> FineTuning
+    FineTuning --> Inference
+    Inference --> ColorProcessing
