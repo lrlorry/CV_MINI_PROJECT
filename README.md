@@ -14,8 +14,8 @@ The model is designed for data-scarce applications such as architectural visuali
 ## 🧠 Method Summary
 
 ### 🔶 Input:
-- 🖋️ Sketch (1-channel grayscale, 512×512 or patch)
-- 🌐 Depth map (ZoeDepth-estimated)
+- 🖋️ Sketch
+- 🌐 Depth map 
 - 🧩 Semantic mask (optional, pre-segmented or SAM-based)
 - 🎨 Optional palette configuration (HSV, Lab, fixed or learned)
 
@@ -26,10 +26,14 @@ The model is designed for data-scarce applications such as architectural visuali
 ### 🔶 Architecture:
 - Backbone: **U-Net** with 3 downsampling and 3 upsampling blocks
 - Bottleneck: **Self-Attention**
-- Style modulation: Optional **AdaIN** or **palette-guided**
+- Style modulation: Optional **Adaptive Instance Normalization (AdaIN)** or palette-guided
 - Loss: **L1 + optional VGG perceptual loss**
 - Color space: HSV or Lab (configurable)
 - Semantic-aware concatenation (when mask is used)
+
+### 🏗️ Project Architecture
+
+![Model Architecture](output/report/model_architecture.png)
 
 ---
 
@@ -38,26 +42,45 @@ The model is designed for data-scarce applications such as architectural visuali
 ```
 project/
 ├── config/
-│   └── color_palettes.py       # Defines color palette configurations
+│   └── color_palettes.py              # Defines color palette configurations
+│
 ├── models/
-│   ├── attention.py            # Self-attention module
-│   └── unet.py                 # U-Net model architecture
+│   ├── attention.py                   # Self-attention module
+│   └── unet.py                        # U-Net model architecture
+│
 ├── utils/
-│   ├── color_utils.py          # Functions for color processing
-│   ├── image_utils.py          # General image utility functions
-│   ├── lab_processor.py        # LAB color space processing
-│   └── visualization.py        # Visualization utilities
+│   ├── color_utils.py                 # Functions for color processing
+│   ├── image_utils.py                 # General image utility functions
+│   ├── lab_processor.py               # LAB color space processing
+│   └── visualization.py               # Visualization utilities
+│
 ├── data/
-│   └── dataset.py              # Dataset class definition
+│   └── dataset.py                     # Dataset class definition
+│
 ├── loss/
-│   └── combined_loss.py        # Custom loss function definitions
+│   └── combined_loss.py              # Custom loss function definitions
+│
+├── preprocess/
+│   ├── depth-anything-large-hf_6.py  # Depth map generation from RGB
+│   ├── SAM_segment_anything_colab.ipynb # Semantic segmentation with SAM
+│   ├── sketch_with_cv_0.py           # Sketch image generation
+│   ├── depth/                        # Depth map preprocessed outputs
+│   ├── multiview/                    # Multiview generation utilities or results
+│   ├── semantic/                     # Semantic mask outputs
+│   ├── sketch/                       # Sketch map outputs
+│   └── view/
+│       ├── generate_multiview.py         # Generate multi-view images from depth
+│       ├── generate_wiggle_gif.py        # Generate wiggle GIFs for 3D-like effect
+│       └── make_multiview.gif.py         # Combine views into a multi-frame GIF
+│
 ├── process/
-│   ├── high_res.py             # High-resolution image inference
-│   └── sketch_depth.py         # Sketch and depth map generation
-├── train.py                    # Model training script
-├── process.py                  # Inference pipeline script
-├── batch_process.py            # Batch image processing script
-└── generate_styles.py          # Stylized image generation script
+│   ├── high_res.py                  # High-resolution inference pipeline
+│   └── sketch_depth.py              # Sketch and depth generation orchestrator
+│
+├── train.py                         # Model training entry script
+├── process.py                       # Full image inference pipeline
+├── batch_process.py                 # Batch processing for multiple inputs
+└── generate_styles.py               # Script for stylized image generation
 ```
 
 ---
@@ -105,8 +128,8 @@ Metrics are computed during training and logged:
 
 Final model achieved:
 ```
-SSIM  = 0.5345
-PSNR  = 17.29 dB
+SSIM  = 0.5447
+PSNR  = 17.87 dB
 ```
 
 Trained from a **single image**, with consistent stylization.
@@ -133,21 +156,17 @@ Augmentation includes:
 
 | Configuration             | SSIM   | PSNR (dB) |
 |--------------------------|--------|-----------|
-| Base (Finetuned)         | 0.5091 | 14.10     |
-| + Style Encoder (AdaIN)  | 0.5086 | 14.06     |
-| + Adaptive LR Decay      | 0.5236 | 14.76     |
-| + VGG Perceptual Loss    | 0.5373 | 14.46     |
-| ✅ Final (w/o VGG)        | **0.5345** | **17.29**     |
+| Base (Finetuned)         | 0.4087 | 13.69     |
+| + Style Encoder (AdaIN)  | 0.5222 | 14.68     |
+| + Adaptive LR Decay      | 0.5224 | 15.23     |
+| + VGG Perceptual Loss    | 0.5571 | 14.98     |
+| ✅ Final (w/o VGG)        | **0.5447** | **17.29**     |
 
 ---
 
 ## 📷 Sample Results
 
-![inputs](figures/combined_inputs_row.png)
-> Input: Sketch + Depth + Semantic (optional)
-
-![outputs](figures/stylized_outputs_grid.png)
-> Stylized outputs under different configurations
+Sample results can be found under the `/output` directory:
 
 ---
 
